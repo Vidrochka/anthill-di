@@ -1,0 +1,10 @@
+pub mod base_types_as_unique_inject;
+pub mod base_types_as_singletone_inject;
+pub mod one_type_inject;
+pub mod one_trait_inject;
+pub mod type_with_castom_constructor;
+pub mod type_with_castom_instance;
+pub mod type_with_castom_constructor_and_instance;
+pub mod trait_with_castom_instance;
+pub mod trait_with_castom_constructor;
+pub mod trait_with_castom_constructor_and_instance;
