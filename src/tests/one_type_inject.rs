@@ -4,10 +4,10 @@ struct InnerStruct {
 }
 
 impl crate::Injection for InnerStruct {
-    fn build_injection(_: &mut crate::Injector) -> Self {
-        Self {
+    fn build_injection(_: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
             text: "test".to_string(),
-        }
+        })
     }
 }
 
@@ -17,10 +17,10 @@ struct OuterStruct {
 }
 
 impl crate::Injection for OuterStruct {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            inner: injector.get_new_instance(),
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            inner: injector.get_new_instance()?,
+        })
     }
 }
 
@@ -33,7 +33,7 @@ fn one_type_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<OuterStruct>();
+    let obj = injector.lock().unwrap().get_new_instance::<OuterStruct>().unwrap();
 
     assert_eq!(obj.inner.text, "test".to_string());
 }

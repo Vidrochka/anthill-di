@@ -6,10 +6,10 @@ struct StructWithSingletoneValueIngection {
 }
 
 impl crate::Injection for StructWithSingletoneValueIngection {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            string: injector.get_singletone(),
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            string: injector.get_singletone()?,
+        })
     }
 }
 
@@ -21,11 +21,11 @@ struct StructWithSingletoneValueWrapper {
 }
 
 impl crate::Injection for StructWithSingletoneValueWrapper {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            struct_with_singletone_1: injector.get_new_instance(),
-            struct_with_singletone_2: injector.get_new_instance(),
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            struct_with_singletone_1: injector.get_new_instance()?,
+            struct_with_singletone_2: injector.get_new_instance()?,
+        })
     }
 }
 
@@ -39,7 +39,7 @@ fn base_types_singletone_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithSingletoneValueWrapper>();
+    let obj = injector.lock().unwrap().get_new_instance::<StructWithSingletoneValueWrapper>().unwrap();
 
     *obj.struct_with_singletone_1.string.lock().unwrap() = "tested singletone".to_string();
     assert_eq!(

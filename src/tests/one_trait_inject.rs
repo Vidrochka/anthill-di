@@ -6,10 +6,10 @@ struct StructWithText {
 }
 
 impl crate::Injection for StructWithText {
-    fn build_injection(_: &mut crate::Injector) -> Self {
-        Self {
+    fn build_injection(_: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
             text: "test".to_string(),
-        }
+        })
     }
 }
 
@@ -25,10 +25,10 @@ struct TextBox {
 }
 
 impl crate::Injection for TextBox {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            text_getter: injector.get_new_instance(),
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            text_getter: injector.get_new_instance()?,
+        })
     }
 }
 
@@ -41,7 +41,7 @@ fn one_trait_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<TextBox>();
+    let obj = injector.lock().unwrap().get_new_instance::<TextBox>().unwrap();
 
     assert_eq!(obj.text_getter.get(), "test".to_string());
 }

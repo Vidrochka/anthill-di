@@ -15,7 +15,8 @@ Library required Rust nightly
 use anthill_di::{
     builders::ContainerBuilder,
     Injector,
-    Injection
+    Injection,
+    DiError
 };
 
 trait TextGetter {
@@ -27,10 +28,10 @@ struct StructWithText {
 }
 
 impl Injection for StructWithText {
-    fn build_injection(_: &mut Injector) -> Self {
-        Self {
+    fn build_injection(_: &mut Injector) -> Result<Self,DiError> {
+        Ok(Self {
             text: "test".to_string(),
-        }
+        })
     }
 }
 
@@ -45,10 +46,10 @@ struct TextBox {
 }
 
 impl Injection for TextBox {
-    fn build_injection(injector: &mut Injector) -> Self {
-        Self {
-            text_getter: injector.get_new_instance(),
-        }
+    fn build_injection(injector: &mut Injector) -> Result<Self,DiError> {
+        Ok(Self {
+            text_getter: injector.get_new_instance()?,
+        })
     }
 }
 
@@ -60,7 +61,7 @@ fn main() {
 
     let injector = Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<TextBox>();
+    let obj = injector.lock().unwrap().get_new_instance::<TextBox>().unwrap();
 
     assert_eq!(obj.text_getter.get(), "test".to_string());
 }

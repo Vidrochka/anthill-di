@@ -14,10 +14,10 @@ impl TextGetter for StructWithCustomInstance {
 }
 
 impl crate::Injection for StructWithCustomInstance {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            string: injector.get_new_instance()
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            string: injector.get_new_instance()?
+        })
     }
 }
 
@@ -30,13 +30,13 @@ fn trait_with_castom_instance() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>();
+    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
     assert_eq!((*obj.lock().unwrap()).get(), "test".to_string());
 
-    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>();
+    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
     assert_eq!(obj.get(), "".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>();
+    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
     assert_eq!((*obj.lock().unwrap()).get(), "test".to_string());
 }
 
@@ -49,7 +49,7 @@ fn unconfigured_trait_with_castom_instance_singletone_instance() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>();
+    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
     assert_eq!((*obj.lock().unwrap()).get(), "test".to_string());
 }
 
@@ -63,6 +63,6 @@ fn unconfigured_trait_with_castom_instance_new_instance_panic() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>();
+    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
     assert_eq!(obj.get(), "test".to_string());
 }

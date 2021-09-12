@@ -4,10 +4,10 @@ struct StructWithCustomInstance {
 }
 
 impl crate::Injection for StructWithCustomInstance {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            string: injector.get_new_instance()
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            string: injector.get_new_instance()?
+        })
     }
 }
 
@@ -19,13 +19,13 @@ fn type_with_castom_instance() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>();
+    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>().unwrap();
     assert_eq!((*obj.lock().unwrap()).string, "test".to_string());
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomInstance>();
+    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomInstance>().unwrap();
     assert_eq!(obj.string, "".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>();
+    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>().unwrap();
     assert_eq!((*obj.lock().unwrap()).string, "test".to_string());
 }
 
@@ -38,7 +38,7 @@ fn unconfigured_type_with_castom_instance_singletone_instance() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>();
+    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomInstance>().unwrap();
     assert_eq!((*obj.lock().unwrap()).string, "test".to_string());
 }
 
@@ -52,6 +52,6 @@ fn unconfigured_type_with_castom_instance_new_instance_panic() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomInstance>();
+    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomInstance>().unwrap();
     assert_eq!(obj.string, "".to_string());
 }

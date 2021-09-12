@@ -5,7 +5,7 @@ use crate::{container::Container, injection::Injection, injector::Injector};
 
 pub struct TypeBuilder<TType> where TType: Injection + 'static {
     pub phantom: PhantomData<TType>,
-    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Box<dyn Any>>>,
+    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>>>,
     pub instance: Option<Box<dyn Any>>,
 }
 
@@ -13,8 +13,8 @@ impl<TType> TypeBuilder<TType> where TType: Injection + 'static {
     pub fn build(mut self) -> Container{
 
         if let None = self.constructor {
-            let constructor: Box<dyn Fn(&mut Injector) -> Box<dyn Any>> = Box::new(|injector: &mut Injector| -> Box<dyn Any> {
-                Box::new(TType::build_injection(injector))
+            let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>> = Box::new(|injector: &mut Injector| -> Result<Box<dyn Any>,crate::DiError> {
+                Ok(Box::new(TType::build_injection(injector)?))
             });
             self.constructor = Some(constructor)
         }
@@ -31,9 +31,9 @@ impl<TType> TypeBuilder<TType> where TType: Injection + 'static {
         self
     }
 
-    pub fn to_constructor(mut self, constructor: fn(&mut Injector) -> TType) -> Self {
-        let constructor: Box<dyn Fn(&mut Injector) -> Box<dyn Any>> = Box::new(move |injector: &mut Injector| -> Box<dyn Any> {
-            Box::new((constructor)(injector))
+    pub fn to_constructor(mut self, constructor: fn(&mut Injector) -> Result<TType, crate::DiError>) -> Self {
+        let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>> = Box::new(move |injector: &mut Injector| -> Result<Box<dyn Any>,crate::DiError> {
+            Ok(Box::new((constructor)(injector)?))
         });
 
         self.constructor = Some(constructor);

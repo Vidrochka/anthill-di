@@ -55,7 +55,7 @@ impl Injector {
         injector
     }
 
-    pub fn get_singletone<TType>(&mut self) -> Arc<Mutex<TType>> where TType: 'static {
+    pub fn get_singletone<TType>(&mut self) -> Result<Arc<Mutex<TType>>, crate::DiError> where TType: 'static {
         match self.containers.remove(&TypeId::of::<TType>()) {
             Some(mut container) => {
                 let obj = container.build_singletone::<TType>(self);
@@ -63,11 +63,11 @@ impl Injector {
                 obj
                 
             },
-            None => panic!("[injector::build_singletone] container not found {}", type_name::<TType>()),
+            None => Err(crate::DiError::ContainerNotFound{type_name: type_name::<TType>().to_string()}),
         }
     }
 
-    pub fn get_new_instance<TType>(&mut self) -> TType where TType: 'static {
+    pub fn get_new_instance<TType>(&mut self) -> Result<TType, crate::DiError> where TType: 'static {
         match self.containers.remove(&TypeId::of::<TType>()) {
             Some(container) => {
                 let obj = container.build_new_instance::<TType>(self);
@@ -75,7 +75,7 @@ impl Injector {
                 obj
                 
             },
-            None => panic!("[injector::build_new_instance] container not found {}", type_name::<TType>()),
+            None => Err(crate::DiError::ContainerNotFound{type_name: type_name::<TType>().to_string()}),
         }
     }
 }

@@ -9,7 +9,7 @@ where
 {
     pub phantom_interface: PhantomData<TInterface>,
     pub phantom_type: PhantomData<TType>,
-    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Box<dyn Any>>>,
+    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>>>,
     pub instance: Option<Box<dyn Any>>,
 }
 
@@ -21,9 +21,9 @@ where
     pub fn build(mut self) -> Container
     {
         if let None = self.constructor {
-            let constructor: Box<dyn Fn(&mut Injector) -> Box<dyn Any>> = Box::new(|injector: &mut Injector| -> Box<dyn Any> {
-                let interface: Box<TInterface> = Box::new(TType::build_injection(injector)) as Box<TInterface>;
-                Box::new(interface)
+            let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>> = Box::new(|injector: &mut Injector| -> Result<Box<dyn Any>, crate::DiError> {
+                let interface: Box<TInterface> = Box::new(TType::build_injection(injector)?) as Box<TInterface>;
+                Ok(Box::new(interface))
             });
             self.constructor = Some(constructor)
         }
@@ -40,9 +40,9 @@ where
         self
     }
 
-    pub fn to_constructor(mut self, constructor: fn(&mut Injector) -> Box<TInterface>) -> Self {
-        let constructor: Box<dyn Fn(&mut Injector) -> Box<dyn Any>> = Box::new(move |injector: &mut Injector| -> Box<dyn Any> {
-            Box::new((constructor)(injector))
+    pub fn to_constructor(mut self, constructor: fn(&mut Injector) -> Result<Box<TInterface>, crate::DiError>) -> Self {
+        let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>, crate::DiError>> = Box::new(move |injector: &mut Injector| -> Result<Box<dyn Any>, crate::DiError> {
+            Ok(Box::new((constructor)(injector)?))
         });
 
         self.constructor = Some(constructor);

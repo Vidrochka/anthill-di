@@ -4,10 +4,10 @@ struct StructWithCustomConstuctorAndInstance {
 }
 
 impl crate::Injection for StructWithCustomConstuctorAndInstance {
-    fn build_injection(injector: &mut crate::Injector) -> Self {
-        Self {
-            string: injector.get_new_instance()
-        }
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
+        Ok(Self {
+            string: injector.get_new_instance()?
+        })
     }
 }
 
@@ -15,16 +15,16 @@ impl crate::Injection for StructWithCustomConstuctorAndInstance {
 fn type_with_castom_constructor_and_instance() {
     let containers = vec![
         crate::builders::ContainerBuilder::bind_type()
-            .to_constructor(|_| -> _ { StructWithCustomConstuctorAndInstance {string: "test 1".to_string()} } )
+            .to_constructor(|_| -> _ { Ok(StructWithCustomConstuctorAndInstance {string: "test 1".to_string()}) } )
             .to_value(StructWithCustomConstuctorAndInstance {string: "test 2".to_string()}).build(),
     ];
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctorAndInstance>();
+    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctorAndInstance>().unwrap();
     assert_eq!(obj.string, "test 1".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctorAndInstance>();
+    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctorAndInstance>().unwrap();
     assert_eq!(obj.lock().unwrap().string, "test 2".to_string());
 }
 
@@ -34,15 +34,15 @@ fn unconfigured_type_with_castom_constructor_and_instance() {
         crate::builders::ContainerBuilder::bind_unconfigured_type()
             .build_with_constructor_and_value(
                 StructWithCustomConstuctorAndInstance {string: "test 2".to_string()},
-                |_| -> _ { StructWithCustomConstuctorAndInstance {string: "test 1".to_string()} }
+                |_| -> _ { Ok(StructWithCustomConstuctorAndInstance {string: "test 1".to_string()}) }
             )
     ];
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctorAndInstance>();
+    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctorAndInstance>().unwrap();
     assert_eq!(obj.string, "test 1".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctorAndInstance>();
+    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctorAndInstance>().unwrap();
     assert_eq!(obj.lock().unwrap().string, "test 2".to_string());
 }

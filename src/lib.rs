@@ -7,6 +7,8 @@ mod injector;
 pub use injector::*;
 mod injection;
 pub use injection::*;
+mod error;
+pub use error::*;
 pub mod builders;
 
 pub mod tests;
