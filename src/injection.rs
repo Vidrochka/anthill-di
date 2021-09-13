@@ -36,3 +36,4 @@ injection!(usize, 0);
 injection!(isize, 0);
 injection!(f32, 0.0);
 injection!(f64, 0.0);
+injection!(bool, false);

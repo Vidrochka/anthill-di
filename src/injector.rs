@@ -36,6 +36,7 @@ impl Injector {
         containers.push(ContainerBuilder::bind_type::<isize>().build());
         containers.push(ContainerBuilder::bind_type::<f32>().build());
         containers.push(ContainerBuilder::bind_type::<f64>().build());
+        containers.push(ContainerBuilder::bind_type::<bool>().build());
 
         containers.into_iter().rev().for_each(|container| 
         {
@@ -77,5 +78,13 @@ impl Injector {
             },
             None => Err(crate::DiError::ContainerNotFound{type_name: type_name::<TType>().to_string()}),
         }
+    }
+
+    pub fn add_container(&mut self, container: Container) {
+        self.containers.insert(container.type_id.clone(), container);
+    }
+
+    pub fn remove_container(&mut self, type_id: TypeId) -> Option<Container> {
+        self.containers.remove(&type_id)
     }
 }

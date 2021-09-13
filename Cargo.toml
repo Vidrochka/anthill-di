@@ -1,7 +1,10 @@
 [package]
 name = "anthill-di"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
 edition = "2018"
 description = "Rust di containers system"
 license = "MIT"
+homepage = "https://github.com/Vidrochka/anthill-di"
+repository = "https://github.com/Vidrochka/anthill-di"
+eywords = ["di", "anthill", "anthill-di", "dependency injection"]
