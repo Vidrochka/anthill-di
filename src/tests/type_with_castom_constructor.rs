@@ -20,11 +20,11 @@ fn type_with_castom_constructor() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctor>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<StructWithCustomConstuctor>().unwrap();
     assert_eq!(obj.string, "test".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctor>().unwrap();
-    assert_eq!(obj.lock().unwrap().string, "test".to_string());
+    let obj = injector.write().unwrap().get_singletone::<StructWithCustomConstuctor>().unwrap();
+    assert_eq!(obj.read().unwrap().string, "test".to_string());
 }
 
 #[test]
@@ -36,9 +36,9 @@ fn unconfigured_type_with_castom_constructor() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithCustomConstuctor>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<StructWithCustomConstuctor>().unwrap();
     assert_eq!(obj.string, "test".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<StructWithCustomConstuctor>().unwrap();
-    assert_eq!(obj.lock().unwrap().string, "test".to_string());
+    let obj = injector.write().unwrap().get_singletone::<StructWithCustomConstuctor>().unwrap();
+    assert_eq!(obj.read().unwrap().string, "test".to_string());
 }

@@ -1,5 +1,5 @@
 
-use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, Mutex}};
+use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, RwLock}};
 
 use crate::{container::Container, injection::Injection, injector::Injector};
 
@@ -27,7 +27,7 @@ impl<TType> TypeBuilder<TType> where TType: Injection + 'static {
     }
 
     pub fn to_value(mut self, value: TType) -> Self {
-        self.instance = Some(Box::new(Arc::new(Mutex::new(value))));
+        self.instance = Some(Box::new(Arc::new(RwLock::new(value))));
         self
     }
 

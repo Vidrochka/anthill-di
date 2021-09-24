@@ -41,7 +41,7 @@ fn one_trait_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<TextBox>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<TextBox>().unwrap();
 
     assert_eq!(obj.text_getter.get(), "test".to_string());
 }

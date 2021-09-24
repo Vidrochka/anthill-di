@@ -30,11 +30,11 @@ fn trait_with_castom_constructor() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
     assert_eq!(obj.get(), "test".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.lock().unwrap().get(), "test".to_string());
+    let obj = injector.write().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
+    assert_eq!(obj.read().unwrap().get(), "test".to_string());
 }
 
 #[test]
@@ -46,9 +46,9 @@ fn unconfigured_trait_with_castom_constructor() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
     assert_eq!(obj.get(), "test".to_string());
 
-    let obj = injector.lock().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.lock().unwrap().get(), "test".to_string());
+    let obj = injector.write().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
+    assert_eq!(obj.read().unwrap().get(), "test".to_string());
 }

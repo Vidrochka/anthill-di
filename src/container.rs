@@ -1,5 +1,5 @@
 use std::any::type_name_of_val;
-use std::{any::{Any, TypeId, type_name}, sync::{Arc, Mutex}};
+use std::{any::{Any, TypeId, type_name}, sync::{Arc, RwLock}};
 
 use crate::injector::Injector;
 
@@ -10,9 +10,9 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn build_singletone<TType>(&mut self, injector: &mut Injector) -> Result<Arc<Mutex<TType>>, crate::DiError> where TType: 'static {
+    pub fn build_singletone<TType>(&mut self, injector: &mut Injector) -> Result<Arc<RwLock<TType>>, crate::DiError> where TType: 'static {
         if let Some(instance) = self.instance.take() {
-            match instance.downcast::<Arc<Mutex<TType>>>() {
+            match instance.downcast::<Arc<RwLock<TType>>>() {
                 Ok(typed_instance) =>
                 {
                     let clone = Arc::clone(&*typed_instance);
@@ -22,7 +22,7 @@ impl Container {
                 Err(val) => {
                     let instanse_name = type_name_of_val(&*val);
                     self.instance = Some(val);
-                    Err(crate::DiError::IvalidDiCast{from: instanse_name.to_string(), to: type_name::<Arc<Mutex<TType>>>().to_string()})
+                    Err(crate::DiError::IvalidDiCast{from: instanse_name.to_string(), to: type_name::<Arc<RwLock<TType>>>().to_string()})
                 },
             }
         } else {
@@ -33,7 +33,7 @@ impl Container {
                     Ok(res) => {
                         match res.downcast::<TType>() {
                             Ok(typed_constructed) => {
-                                let constructed_singletone = Arc::new(Mutex::new(*typed_constructed));
+                                let constructed_singletone = Arc::new(RwLock::new(*typed_constructed));
                                 self.instance = Some(Box::new(Arc::clone(&constructed_singletone)));
                                 Ok(constructed_singletone)
                             },

@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::{Arc, Mutex}};
+use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::{Arc, RwLock}};
 
 use crate::{Injector, Container};
 
@@ -22,7 +22,7 @@ where
         Container {
             type_id: TypeId::of::<Box<TInterface>>(),
             constructor: None,
-            instance: Some(Box::new(Arc::new(Mutex::new(value)))),
+            instance: Some(Box::new(Arc::new(RwLock::new(value)))),
         }
     }
 
@@ -46,7 +46,7 @@ where
         Container {
             type_id: TypeId::of::<Box<TInterface>>(),
             constructor: Some(constructor),
-            instance: Some(Box::new(Arc::new(Mutex::new(value)))),
+            instance: Some(Box::new(Arc::new(RwLock::new(value)))),
         }
     }
 }

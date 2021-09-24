@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, Mutex}};
+use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, RwLock}};
 
 use crate::{Injector, Container};
 
@@ -13,7 +13,7 @@ impl<TType> UnconfiguredTypeBuilder<TType> where TType: 'static {
         Container {
             type_id: TypeId::of::<TType>(),
             constructor: None,
-            instance: Some(Box::new(Arc::new(Mutex::new(value)))),
+            instance: Some(Box::new(Arc::new(RwLock::new(value)))),
         }
     }
 
@@ -37,7 +37,7 @@ impl<TType> UnconfiguredTypeBuilder<TType> where TType: 'static {
         Container {
             type_id: TypeId::of::<TType>(),
             constructor: Some(constructor),
-            instance: Some(Box::new(Arc::new(Mutex::new(value)))),
+            instance: Some(Box::new(Arc::new(RwLock::new(value)))),
         }
     }
 }

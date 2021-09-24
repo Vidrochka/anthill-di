@@ -1,4 +1,4 @@
-use std::{any::{TypeId, type_name}, collections::HashMap, sync::{Arc, Mutex}};
+use std::{any::{TypeId, type_name}, collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::{builders::ContainerBuilder, container::Container};
 
@@ -7,8 +7,8 @@ pub struct Injector {
 }
 
 impl Injector {
-    pub fn new(containers: Vec<Container>) -> Arc<Mutex<Self>> {
-        let injector = Arc::new(Mutex::new(Self{containers: HashMap::new()}));
+    pub fn new(containers: Vec<Container>) -> Arc<RwLock<Self>> {
+        let injector = Arc::new(RwLock::new(Self{containers: HashMap::new()}));
 
         let mut containers_map: HashMap<TypeId, Container> = HashMap::new();
 
@@ -51,12 +51,12 @@ impl Injector {
             )
         }
 
-        injector.lock().unwrap().containers = containers_map;
+        injector.write().unwrap().containers = containers_map;
 
         injector
     }
 
-    pub fn get_singletone<TType>(&mut self) -> Result<Arc<Mutex<TType>>, crate::DiError> where TType: 'static {
+    pub fn get_singletone<TType>(&mut self) -> Result<Arc<RwLock<TType>>, crate::DiError> where TType: 'static {
         match self.containers.remove(&TypeId::of::<TType>()) {
             Some(mut container) => {
                 let obj = container.build_singletone::<TType>(self);

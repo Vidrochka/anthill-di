@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 struct StructWithSingletoneValueIngection {
     #[allow(dead_code)]
-    string: Arc<Mutex<String>>,
+    string: Arc<RwLock<String>>,
 }
 
 impl crate::Injection for StructWithSingletoneValueIngection {
@@ -39,11 +39,11 @@ fn base_types_singletone_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithSingletoneValueWrapper>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<StructWithSingletoneValueWrapper>().unwrap();
 
-    *obj.struct_with_singletone_1.string.lock().unwrap() = "tested singletone".to_string();
+    *obj.struct_with_singletone_1.string.write().unwrap() = "tested singletone".to_string();
     assert_eq!(
-        *obj.struct_with_singletone_2.string.lock().unwrap(),
+        *obj.struct_with_singletone_2.string.read().unwrap(),
         "tested singletone".to_string()
     );
 }

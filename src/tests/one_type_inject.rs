@@ -33,7 +33,7 @@ fn one_type_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<OuterStruct>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<OuterStruct>().unwrap();
 
     assert_eq!(obj.inner.text, "test".to_string());
 }

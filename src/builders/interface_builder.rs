@@ -1,4 +1,4 @@
-use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::{Arc, Mutex}};
+use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::{Arc, RwLock}};
 
 use crate::{container::Container, injection::Injection, injector::Injector};
 
@@ -36,7 +36,7 @@ where
     }
 
     pub fn to_value(mut self, value: Box<TInterface>) -> Self {
-        self.instance = Some(Box::new(Arc::new(Mutex::new(value))));
+        self.instance = Some(Box::new(Arc::new(RwLock::new(value))));
         self
     }
 

@@ -32,7 +32,7 @@ fn base_types_as_unique_inject() {
 
     let injector = crate::Injector::new(containers);
 
-    let obj = injector.lock().unwrap().get_new_instance::<StructWithValueIngection>().unwrap();
+    let obj = injector.write().unwrap().get_new_instance::<StructWithValueIngection>().unwrap();
 
     assert_eq!(obj.string, "test".to_string());
     assert_eq!(obj.string_ref, "test 2".to_string());
