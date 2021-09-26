@@ -1,7 +1,8 @@
-use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, RwLock}};
+use std::{any::{Any, TypeId}, marker::PhantomData, sync::Arc};
 
 use crate::{Injector, Container};
 
+use tokio::sync::RwLock;
 
 pub struct UnconfiguredTypeBuilder<TType> {
     pub phantom: PhantomData<TType>,

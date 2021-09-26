@@ -1,5 +1,6 @@
 #![feature(type_name_of_val)]
 #![feature(unsize)]
+#![feature(async_closure)]
 
 mod container;
 pub use container::*;

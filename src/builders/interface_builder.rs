@@ -1,6 +1,8 @@
-use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::{Arc, RwLock}};
+use std::{any::{Any, TypeId}, marker::{PhantomData, Unsize}, sync::Arc};
 
 use crate::{container::Container, injection::Injection, injector::Injector};
+
+use tokio::sync::RwLock;
 
 pub struct InterfaceBuilder<TInterface, TType> 
 where 

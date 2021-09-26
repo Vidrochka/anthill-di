@@ -1,7 +1,9 @@
 use std::any::type_name_of_val;
-use std::{any::{Any, TypeId, type_name}, sync::{Arc, RwLock}};
+use std::{any::{Any, TypeId, type_name}, sync::Arc};
 
 use crate::injector::Injector;
+
+use tokio::sync::RwLock;
 
 pub struct Container {
     pub type_id: TypeId,

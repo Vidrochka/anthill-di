@@ -1,7 +1,9 @@
 
-use std::{any::{Any, TypeId}, marker::PhantomData, sync::{Arc, RwLock}};
+use std::{any::{Any, TypeId}, marker::PhantomData, sync::Arc};
 
 use crate::{container::Container, injection::Injection, injector::Injector};
+
+use tokio::sync::RwLock;
 
 pub struct TypeBuilder<TType> where TType: Injection + 'static {
     pub phantom: PhantomData<TType>,

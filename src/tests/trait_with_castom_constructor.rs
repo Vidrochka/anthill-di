@@ -1,3 +1,5 @@
+use tokio::runtime::Runtime;
+
 trait TextGetter {
     fn get(&self) -> String;
 }
@@ -23,32 +25,40 @@ impl crate::Injection for StructWithCustomConstuctor {
 
 #[test]
 fn trait_with_castom_constructor() {
-    let containers = vec![
-        crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithCustomConstuctor>()
-            .to_constructor(|_| -> _ { Ok(Box::new(StructWithCustomConstuctor {string: "test".to_string()})) } ).build(),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = crate::Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithCustomConstuctor>()
+                .to_constructor(|_| -> _ { Ok(Box::new(StructWithCustomConstuctor {string: "test".to_string()})) } ).build(),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.get(), "test".to_string());
+        let injector = crate::Injector::new(containers).await;
 
-    let obj = injector.write().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.read().unwrap().get(), "test".to_string());
+        let obj = injector.write().await.get_new_instance::<Box<dyn TextGetter>>().unwrap();
+        assert_eq!(obj.get(), "test".to_string());
+
+        let obj = injector.write().await.get_singletone::<Box<dyn TextGetter>>().unwrap();
+        assert_eq!(obj.read().await.get(), "test".to_string());
+    });
 }
 
 #[test]
 fn unconfigured_trait_with_castom_constructor() {
-    let containers = vec![
-        crate::builders::ContainerBuilder::bind_unconfigured_interface::<dyn TextGetter, StructWithCustomConstuctor>()
-            .build_with_constructor(|_| -> _ { Ok(Box::new(StructWithCustomConstuctor {string: "test".to_string()})) } ),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = crate::Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_unconfigured_interface::<dyn TextGetter, StructWithCustomConstuctor>()
+                .build_with_constructor(|_| -> _ { Ok(Box::new(StructWithCustomConstuctor {string: "test".to_string()})) } ),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.get(), "test".to_string());
+        let injector = crate::Injector::new(containers).await;
 
-    let obj = injector.write().unwrap().get_singletone::<Box<dyn TextGetter>>().unwrap();
-    assert_eq!(obj.read().unwrap().get(), "test".to_string());
+        let obj = injector.write().await.get_new_instance::<Box<dyn TextGetter>>().unwrap();
+        assert_eq!(obj.get(), "test".to_string());
+
+        let obj = injector.write().await.get_singletone::<Box<dyn TextGetter>>().unwrap();
+        assert_eq!(obj.read().await.get(), "test".to_string());
+    });
 }

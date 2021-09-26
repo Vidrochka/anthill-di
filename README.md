@@ -19,16 +19,17 @@ use anthill_di::{
     DiError
 };
 
+use tokio::runtime::Runtime;
+
 trait TextGetter {
     fn get(&self) -> String;
 }
-
 struct StructWithText {
     text: String,
 }
 
-impl Injection for StructWithText {
-    fn build_injection(_: &mut Injector) -> Result<Self,DiError> {
+impl crate::Injection for StructWithText {
+    fn build_injection(_: &mut crate::Injector) -> Result<Self, crate::DiError> {
         Ok(Self {
             text: "test".to_string(),
         })
@@ -42,11 +43,12 @@ impl TextGetter for StructWithText {
 }
 
 struct TextBox {
+    #[allow(dead_code)]
     text_getter: Box<dyn TextGetter>,
 }
 
-impl Injection for TextBox {
-    fn build_injection(injector: &mut Injector) -> Result<Self,DiError> {
+impl crate::Injection for TextBox {
+    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
         Ok(Self {
             text_getter: injector.get_new_instance()?,
         })
@@ -54,16 +56,20 @@ impl Injection for TextBox {
 }
 
 fn main() {
-    let containers = vec![
-        ContainerBuilder::bind_interface::<dyn TextGetter, StructWithText>().build(),
-        ContainerBuilder::bind_type::<TextBox>().build(),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithText>().build(),
+            crate::builders::ContainerBuilder::bind_type::<TextBox>().build(),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<TextBox>().unwrap();
+        let injector = crate::Injector::new(containers).await;
 
-    assert_eq!(obj.text_getter.get(), "test".to_string());
+        let obj = injector.write().await.get_new_instance::<TextBox>().unwrap();
+
+        assert_eq!(obj.text_getter.get(), "test".to_string());
+    });
 }
 
 ```

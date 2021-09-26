@@ -1,3 +1,5 @@
+use tokio::runtime::Runtime;
+
 trait TextGetter {
     fn get(&self) -> String;
 }
@@ -34,14 +36,18 @@ impl crate::Injection for TextBox {
 
 #[test]
 fn one_trait_inject() {
-    let containers = vec![
-        crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithText>().build(),
-        crate::builders::ContainerBuilder::bind_type::<TextBox>().build(),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = crate::Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithText>().build(),
+            crate::builders::ContainerBuilder::bind_type::<TextBox>().build(),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<TextBox>().unwrap();
+        let injector = crate::Injector::new(containers).await;
 
-    assert_eq!(obj.text_getter.get(), "test".to_string());
+        let obj = injector.write().await.get_new_instance::<TextBox>().unwrap();
+
+        assert_eq!(obj.text_getter.get(), "test".to_string());
+    });
 }

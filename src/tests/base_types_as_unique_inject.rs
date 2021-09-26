@@ -1,3 +1,5 @@
+use tokio::runtime::Runtime;
+
 struct StructWithValueIngection {
     #[allow(dead_code)]
     string: String,
@@ -22,20 +24,24 @@ impl crate::Injection for StructWithValueIngection {
 
 #[test]
 fn base_types_as_unique_inject() {
-    let containers = vec![
-        crate::builders::ContainerBuilder::bind_type::<StructWithValueIngection>().build(),
-        crate::builders::ContainerBuilder::bind_type::<String>().to_constructor(|_| -> _ { Ok("test".to_string()) }).build(),
-        crate::builders::ContainerBuilder::bind_type::<&str>().to_constructor(|_| -> _ { Ok("test 2") }).build(),
-        crate::builders::ContainerBuilder::bind_type::<u32>().build(),
-        crate::builders::ContainerBuilder::bind_type::<i32>().to_constructor(|_| -> _ { Ok(1) }).build(),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = crate::Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_type::<StructWithValueIngection>().build(),
+            crate::builders::ContainerBuilder::bind_type::<String>().to_constructor(|_| -> _ { Ok("test".to_string()) }).build(),
+            crate::builders::ContainerBuilder::bind_type::<&str>().to_constructor(|_| -> _ { Ok("test 2") }).build(),
+            crate::builders::ContainerBuilder::bind_type::<u32>().build(),
+            crate::builders::ContainerBuilder::bind_type::<i32>().to_constructor(|_| -> _ { Ok(1) }).build(),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<StructWithValueIngection>().unwrap();
+        let injector = crate::Injector::new(containers).await;
 
-    assert_eq!(obj.string, "test".to_string());
-    assert_eq!(obj.string_ref, "test 2".to_string());
-    assert_eq!(obj.u_number, 0);
-    assert_eq!(obj.number, 1);
+        let obj = injector.write().await.get_new_instance::<StructWithValueIngection>().unwrap();
+
+        assert_eq!(obj.string, "test".to_string());
+        assert_eq!(obj.string_ref, "test 2".to_string());
+        assert_eq!(obj.u_number, 0);
+        assert_eq!(obj.number, 1);
+    });
 }

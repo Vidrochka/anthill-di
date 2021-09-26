@@ -1,4 +1,6 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+
+use tokio::{runtime::Runtime, sync::RwLock};
 
 struct StructWithSingletoneValueIngection {
     #[allow(dead_code)]
@@ -31,19 +33,24 @@ impl crate::Injection for StructWithSingletoneValueWrapper {
 
 #[test]
 fn base_types_singletone_inject() {
-    let containers = vec![
-        crate::builders::ContainerBuilder::bind_type::<StructWithSingletoneValueIngection>()
-            .build(),
-        crate::builders::ContainerBuilder::bind_type::<StructWithSingletoneValueWrapper>().build(),
-    ];
+    let rt  = Runtime::new().unwrap();  
 
-    let injector = crate::Injector::new(containers);
+    rt.block_on(async {
+        let containers = vec![
+            crate::builders::ContainerBuilder::bind_type::<StructWithSingletoneValueIngection>()
+                .build(),
+            crate::builders::ContainerBuilder::bind_type::<StructWithSingletoneValueWrapper>().build(),
+        ];
 
-    let obj = injector.write().unwrap().get_new_instance::<StructWithSingletoneValueWrapper>().unwrap();
+        let injector = crate::Injector::new(containers).await;
 
-    *obj.struct_with_singletone_1.string.write().unwrap() = "tested singletone".to_string();
-    assert_eq!(
-        *obj.struct_with_singletone_2.string.read().unwrap(),
-        "tested singletone".to_string()
-    );
+        let obj = injector.write().await.get_new_instance::<StructWithSingletoneValueWrapper>().unwrap();
+
+        *obj.struct_with_singletone_1.string.write().await = "tested singletone".to_string();
+        
+        assert_eq!(
+            *obj.struct_with_singletone_2.string.read().await,
+            "tested singletone".to_string()
+        );
+    });
 }

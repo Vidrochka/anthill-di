@@ -1,13 +1,15 @@
-use std::{any::{TypeId, type_name}, collections::HashMap, sync::{Arc, RwLock}};
+use std::{any::{TypeId, type_name}, collections::HashMap, sync::Arc};
 
 use crate::{builders::ContainerBuilder, container::Container};
+
+use tokio::sync::RwLock;
 
 pub struct Injector {
     containers: HashMap<TypeId, Container>
 }
 
 impl Injector {
-    pub fn new(containers: Vec<Container>) -> Arc<RwLock<Self>> {
+    pub async fn new(containers: Vec<Container>) -> Arc<RwLock<Self>> {
         let injector = Arc::new(RwLock::new(Self{containers: HashMap::new()}));
 
         let mut containers_map: HashMap<TypeId, Container> = HashMap::new();
@@ -43,15 +45,15 @@ impl Injector {
             containers_map.insert(container.type_id.clone(), container);
         });
 
-        for (type_id, container) in &containers_map {
-            println!("[injector::new] {:?} with constructor {:?}, with instance {:?}", 
-                type_id, 
-                container.constructor.is_some(),
-                container.instance.is_some()
-            )
-        }
+        // for (type_id, container) in &containers_map {
+        //     println!("[injector::new] {:?} with constructor {:?}, with instance {:?}", 
+        //         type_id, 
+        //         container.constructor.is_some(),
+        //         container.instance.is_some()
+        //     )
+        // }
 
-        injector.write().unwrap().containers = containers_map;
+        injector.write().await.containers = containers_map;
 
         injector
     }
