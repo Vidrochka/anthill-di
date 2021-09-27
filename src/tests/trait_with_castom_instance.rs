@@ -64,7 +64,6 @@ fn unconfigured_trait_with_castom_instance_singletone_instance() {
 }
 
 #[test]
-#[should_panic]
 fn unconfigured_trait_with_castom_instance_new_instance_panic() {
     let rt  = Runtime::new().unwrap();  
 
@@ -76,7 +75,7 @@ fn unconfigured_trait_with_castom_instance_new_instance_panic() {
 
         let injector = crate::Injector::new(containers).await;
 
-        let obj = injector.write().await.get_new_instance::<Box<dyn TextGetter>>().unwrap();
-        assert_eq!(obj.get(), "test".to_string());
+        let obj = injector.write().await.get_new_instance::<Box<dyn TextGetter>>();
+        assert_eq!(obj.err(), Some(crate::DiError::ConstructorNotDefined{type_name: std::any::type_name::<Box<dyn TextGetter>>().to_string()}));
     });
 }
