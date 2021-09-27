@@ -1,6 +1,6 @@
 [package]
 name = "anthill-di"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
 edition = "2018"
 description = "Rust di containers system"
@@ -10,5 +10,4 @@ repository = "https://github.com/Vidrochka/anthill-di"
 eywords = ["di", "anthill", "anthill-di", "dependency injection"]
 
 [dependencies]
-async-trait = "*"
 tokio = { version = "*", features = ["full"] }

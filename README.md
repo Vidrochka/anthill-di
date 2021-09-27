@@ -75,3 +75,8 @@ fn main() {
 ```
 
 #### More shared examples present in tests folder
+
+---
+
+#### Refs:
+ - [crate.io](https://crates.io/crates/anthill-di)
