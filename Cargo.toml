@@ -10,4 +10,4 @@ repository = "https://github.com/Vidrochka/anthill-di"
 eywords = ["di", "anthill", "anthill-di", "dependency injection"]
 
 [dependencies]
-tokio = { version = "*", features = ["full"] }
+tokio = { version = "1.12.0", features = ["full"] }
