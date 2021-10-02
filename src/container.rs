@@ -7,23 +7,26 @@ use tokio::sync::RwLock;
 
 pub struct Container {
     pub type_id: TypeId,
-    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>>>,
-    pub instance: Option<Box<dyn Any>>,
+    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any + Sync + Send>,crate::DiError> + Sync + Send>>,
+    pub instance: Option<Arc<dyn Any + Sync + Send>>,
 }
 
 impl Container {
-    pub fn build_singletone<TType>(&mut self, injector: &mut Injector) -> Result<Arc<RwLock<TType>>, crate::DiError> where TType: 'static {
-        if let Some(instance) = self.instance.take() {
-            match instance.downcast::<Arc<RwLock<TType>>>() {
+    pub fn build_singletone<TType>(&mut self, injector: &mut Injector) -> Result<Arc<RwLock<TType>>, crate::DiError>
+    where
+        TType: 'static + Sync + Send 
+    {
+        if let Some(instance) = &self.instance {
+            match instance.clone().downcast::<Arc<RwLock<TType>>>() {
                 Ok(typed_instance) =>
                 {
                     let clone = Arc::clone(&*typed_instance);
-                    self.instance = Some(typed_instance);
+                    //self.instance = Some(Arc::new(typed_instance));
                     Ok(clone)
                 },
                 Err(val) => {
                     let instanse_name = type_name_of_val(&*val);
-                    self.instance = Some(val);
+                    //self.instance = Some(val);
                     Err(crate::DiError::IvalidDiCast{from: instanse_name.to_string(), to: type_name::<Arc<RwLock<TType>>>().to_string()})
                 },
             }
@@ -36,7 +39,7 @@ impl Container {
                         match res.downcast::<TType>() {
                             Ok(typed_constructed) => {
                                 let constructed_singletone = Arc::new(RwLock::new(*typed_constructed));
-                                self.instance = Some(Box::new(Arc::clone(&constructed_singletone)));
+                                self.instance = Some(Arc::new(Arc::clone(&constructed_singletone)));
                                 Ok(constructed_singletone)
                             },
                             Err(val) => Err(crate::DiError::IvalidDiCast{from: type_name_of_val(&*val).to_string(), to: type_name::<TType>().to_string()}),
@@ -50,7 +53,10 @@ impl Container {
         }
     }
 
-    pub fn build_new_instance<TType>(&self, injector: &mut Injector) -> Result<TType, crate::DiError> where TType: 'static {
+    pub fn build_new_instance<TType>(&self, injector: &mut Injector) -> Result<TType, crate::DiError>
+    where
+        TType: Sync + Send + 'static
+    {
         if let Some(constructor) = &self.constructor {
             let constructed = (constructor)(injector);
 

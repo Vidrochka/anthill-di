@@ -1,6 +1,6 @@
 use tokio::runtime::Runtime;
 
-trait TextGetter {
+trait TextGetter: Send + Sync {
     fn get(&self) -> String;
 }
 

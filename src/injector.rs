@@ -16,10 +16,11 @@ impl Injector {
 
         let mut containers = containers;
 
+        let injector_ref = Arc::clone(&injector);
         containers.push(Container {
             type_id: TypeId::of::<Self>(),
             constructor: None,
-            instance: Some(Box::new(Arc::clone(&injector))),
+            instance: Some(Arc::new(injector_ref)),
         });
 
         containers.push(ContainerBuilder::bind_type::<String>().build());
@@ -58,7 +59,7 @@ impl Injector {
         injector
     }
 
-    pub fn get_singletone<TType>(&mut self) -> Result<Arc<RwLock<TType>>, crate::DiError> where TType: 'static {
+    pub fn get_singletone<TType>(&mut self) -> Result<Arc<RwLock<TType>>, crate::DiError> where TType: Sync + Send + 'static {
         match self.containers.remove(&TypeId::of::<TType>()) {
             Some(mut container) => {
                 let obj = container.build_singletone::<TType>(self);
@@ -70,7 +71,7 @@ impl Injector {
         }
     }
 
-    pub fn get_new_instance<TType>(&mut self) -> Result<TType, crate::DiError> where TType: 'static {
+    pub fn get_new_instance<TType>(&mut self) -> Result<TType, crate::DiError> where TType: Sync + Send + 'static {
         match self.containers.remove(&TypeId::of::<TType>()) {
             Some(container) => {
                 let obj = container.build_new_instance::<TType>(self);

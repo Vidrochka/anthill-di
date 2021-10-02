@@ -1,6 +1,6 @@
 [package]
 name = "anthill-di"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
 edition = "2018"
 description = "Rust di containers system"

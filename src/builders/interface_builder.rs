@@ -6,24 +6,24 @@ use tokio::sync::RwLock;
 
 pub struct InterfaceBuilder<TInterface, TType> 
 where 
-    TInterface: 'static + ?Sized,
-    TType: Injection + Unsize<TInterface> + 'static
+    TInterface: ?Sized + Sync + Send + 'static,
+    TType: Injection + Unsize<TInterface> + Sync + Send + 'static
 {
     pub phantom_interface: PhantomData<TInterface>,
     pub phantom_type: PhantomData<TType>,
-    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>>>,
-    pub instance: Option<Box<dyn Any>>,
+    pub constructor: Option<Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any + Sync + Send>,crate::DiError> + Sync + Send>>,
+    pub instance: Option<Arc<dyn Any + Sync + Send>>,
 }
 
 impl<TInterface, TType> InterfaceBuilder<TInterface, TType> 
 where 
-    TInterface: 'static + ?Sized,
-    TType: Injection + Unsize<TInterface> + 'static
+    TInterface: ?Sized + Sync + Send + 'static,
+    TType: Injection + Unsize<TInterface> + Sync + Send + 'static
 {
     pub fn build(mut self) -> Container
     {
         if let None = self.constructor {
-            let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>,crate::DiError>> = Box::new(|injector: &mut Injector| -> Result<Box<dyn Any>, crate::DiError> {
+            let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any + Sync + Send>,crate::DiError> + Sync + Send> = Box::new(|injector: &mut Injector| -> Result<Box<dyn Any + Sync + Send>, crate::DiError> {
                 let interface: Box<TInterface> = Box::new(TType::build_injection(injector)?) as Box<TInterface>;
                 Ok(Box::new(interface))
             });
@@ -38,12 +38,12 @@ where
     }
 
     pub fn to_value(mut self, value: Box<TInterface>) -> Self {
-        self.instance = Some(Box::new(Arc::new(RwLock::new(value))));
+        self.instance = Some(Arc::new(Arc::new(RwLock::new(value))));
         self
     }
 
     pub fn to_constructor(mut self, constructor: fn(&mut Injector) -> Result<Box<TInterface>, crate::DiError>) -> Self {
-        let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any>, crate::DiError>> = Box::new(move |injector: &mut Injector| -> Result<Box<dyn Any>, crate::DiError> {
+        let constructor: Box<dyn Fn(&mut Injector) -> Result<Box<dyn Any + Sync + Send>, crate::DiError> + Sync + Send> = Box::new(move |injector: &mut Injector| -> Result<Box<dyn Any + Sync + Send>, crate::DiError> {
             Ok(Box::new((constructor)(injector)?))
         });
 
