@@ -7,7 +7,7 @@ description = "Rust di containers system"
 license = "MIT"
 homepage = "https://github.com/Vidrochka/anthill-di"
 repository = "https://github.com/Vidrochka/anthill-di"
-keywords = ["anthill", "di", "anthill-di", "dependency injection", "build"]
+keywords = ["anthill", "di", "anthill-di", "dependency-injection", "build"]
 
 [dependencies]
 tokio = { version = "1.12.0", features = ["full"] }
