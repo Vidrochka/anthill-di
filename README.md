@@ -21,7 +21,7 @@ use anthill_di::{
 
 use tokio::runtime::Runtime;
 
-trait TextGetter {
+trait TextGetter: Sync + Send {
     fn get(&self) -> String;
 }
 struct StructWithText {
