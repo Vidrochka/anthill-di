@@ -1,10 +1,23 @@
 # anthill-di
 Rust di containers system
 
+The library is for deep tree of dependencies
+
+Advantages:
+ * async constructors (parallel building)
+ * runtime check dependency cycles
+ * 3 type life cycle (transient/singleton/scoped)
+ * 3 injection way (simple trait constructor, trait as interface for type with constructor, closure as constructor) 
+ * extensible dependency injection logic 
+
+Deficiencies: 
+ * runtime check dependency cycles take some time for synchronize
+ * async building take some time for synchronize
+
 ---
 ## Warning
 
-Library required Rust nightly
+Library required Rust nightly for trait as interface (Unsize)
 
 ---
 
@@ -13,62 +26,42 @@ Library required Rust nightly
 ```rust
 
 use anthill_di::{
-    builders::ContainerBuilder,
-    Injector,
-    Injection,
-    DiError
+    DependencyContext,
+    extensions::ConstructedDependencySetStrategy,
+    Constructor,
+    types::BuildDependencyResult
 };
 
 use tokio::runtime::Runtime;
+use async_trait::async_trait;
 
-trait TextGetter: Sync + Send {
-    fn get(&self) -> String;
-}
-struct StructWithText {
-    text: String,
+struct TransientDependency {
+    pub str: String,
 }
 
-impl crate::Injection for StructWithText {
-    fn build_injection(_: &mut crate::Injector) -> Result<Self, crate::DiError> {
-        Ok(Self {
-            text: "test".to_string(),
-        })
-    }
-}
-
-impl TextGetter for StructWithText {
-    fn get(&self) -> String {
-        self.text.clone()
-    }
-}
-
-struct TextBox {
-    #[allow(dead_code)]
-    text_getter: Box<dyn TextGetter>,
-}
-
-impl crate::Injection for TextBox {
-    fn build_injection(injector: &mut crate::Injector) -> Result<Self, crate::DiError> {
-        Ok(Self {
-            text_getter: injector.get_new_instance()?,
-        })
+#[async_trait(?Send)]
+impl Constructor for TransientDependency {
+    async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
+        Ok(Self { str: "test".to_string() })
     }
 }
 
 fn main() {
-    let rt  = Runtime::new().unwrap();  
+    let rt  = Runtime::new().unwrap();
 
     rt.block_on(async {
-        let containers = vec![
-            crate::builders::ContainerBuilder::bind_interface::<dyn TextGetter, StructWithText>().build(),
-            crate::builders::ContainerBuilder::bind_type::<TextBox>().build(),
-        ];
+        let root_context = DependencyContext::new_root();
+        root_context.set_transient::<TransientDependency>().await.unwrap();
 
-        let injector = crate::Injector::new(containers).await;
+        let mut dependency = root_context.get_transient::<TransientDependency>().await.unwrap();
 
-        let obj = injector.write().await.get_new_instance::<TextBox>().unwrap();
+        assert_eq!(dependency.str, "test".to_string());
 
-        assert_eq!(obj.text_getter.get(), "test".to_string());
+        dependency.str = "test2".to_string();
+
+        let dependency2 = root_context.get_transient::<TransientDependency>().await.unwrap();
+
+        assert_eq!(dependency2.str, "test".to_string());
     });
 }
 

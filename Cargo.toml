@@ -1,6 +1,6 @@
 [package]
 name = "anthill-di"
-version = "0.1.8"
+version = "1.0.0"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
 edition = "2018"
 description = "Rust di containers system"
@@ -10,4 +10,6 @@ repository = "https://github.com/Vidrochka/anthill-di"
 keywords = ["anthill", "di", "anthill-di", "dependency-injection", "build"]
 
 [dependencies]
-tokio = { version = "1.12.0", features = ["full"] }
+async-trait = "0.1.52"
+tokio = { version = "1.15.0", features = ["full"] }
+async-recursion = "1.0.0"
