@@ -30,8 +30,8 @@ pub use dependency_constructor::*;
 mod constructors;
 pub use constructors::*;
 
-mod types;
+pub mod types;
 
-mod extensions;
+pub mod extensions;
 
 pub mod tests;
