@@ -49,7 +49,7 @@ impl DependencyBuilder {
         }
     }
 
-    pub (crate) async fn build_singleton<T: Send + Sync + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Arc<RwLock<T>>> {
+    pub (crate) async fn build_singleton<T: 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Arc<RwLock<T>>> {
         let dependency = DependencyBuilder::get_dependency::<Arc<RwLock<T>>>(&ctx).await?;
 
         if dependency.life_cycle_type != DependencyLifeCycle::Singleton {
@@ -64,12 +64,15 @@ impl DependencyBuilder {
         let mut singleton_dependency_guard = ctx.singleton_dependency.write().await;
 
         if let Some(singleton_instance_rw_lock) = singleton_dependency_guard.get_mut(&dependency.di_type.id) {
-            let singleton_guard = singleton_instance_rw_lock.read().await;
-            match &*(singleton_guard) {
+            let mut singleton_guard = singleton_instance_rw_lock.write().await;
+            match (*singleton_guard).take() {
                 Some(singleton_ref) => {
-                    let singleton_clone = singleton_ref.clone();
-                    return match singleton_clone.downcast::<RwLock<T>>() {
-                        Ok(res) => Ok(res),
+                    return match singleton_ref.downcast::<Arc<RwLock<T>>>() {
+                        Ok(res) => {
+                            let clone = (*res).clone();
+                            singleton_guard.replace(res);
+                            Ok(clone)
+                        },
                         Err(_) => Err(BuildDependencyError::InvalidCast { id: dependency.di_type.id.clone(), name: type_name::<T>().to_string() }),
                     };
                 },
@@ -94,12 +97,12 @@ impl DependencyBuilder {
 
         let new_instance_ref = Arc::new(RwLock::new(new_instance));
 
-        add_singleton_guard.replace(new_instance_ref.clone());
+        add_singleton_guard.replace(Box::new(new_instance_ref.clone()));
 
         Ok(new_instance_ref)
     }
 
-    pub (crate) async fn build_scoped<T: Send + Sync + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Weak<RwLock<T>>> {
+    pub (crate) async fn build_scoped<T: 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Weak<RwLock<T>>> {
         let dependency = DependencyBuilder::get_dependency::<Weak<RwLock<T>>>(&ctx).await?;
 
         if dependency.life_cycle_type != DependencyLifeCycle::Scoped {
@@ -114,12 +117,16 @@ impl DependencyBuilder {
         let mut scope_dependency_guard = scope.scoped_dependencies.write().await;
 
         if let Some(scope_instance_rw_lock) = scope_dependency_guard.get_mut(&dependency.di_type.id) {
-            let scoped_guard = scope_instance_rw_lock.read().await;
-            match &*(scoped_guard) {
+            let mut scoped_guard = scope_instance_rw_lock.write().await;
+            match (*scoped_guard).take() {
                 Some(scoped_ref) => {
-                    let scoped_clone = scoped_ref.clone();
-                    return match scoped_clone.downcast::<RwLock<T>>() {
-                        Ok(res) => Ok(Arc::downgrade(&res)),
+                    //let scoped_clone = scoped_ref.clone();
+                    return match scoped_ref.downcast::<Arc<RwLock<T>>>() {
+                        Ok(res) => {
+                            let clone = Arc::downgrade(&((*res).clone()));
+                            scoped_guard.replace(res);
+                            Ok(clone)
+                        },
                         Err(_) => Err(BuildDependencyError::InvalidCast { id: dependency.di_type.id.clone(), name: type_name::<T>().to_string() }),
                     };
                 },
@@ -144,7 +151,7 @@ impl DependencyBuilder {
 
         let new_instance_ref = Arc::new(RwLock::new(new_instance));
 
-        add_scoped_guard.replace(new_instance_ref.clone());
+        add_scoped_guard.replace(Box::new(new_instance_ref.clone()));
 
         Ok(Arc::downgrade(&new_instance_ref))
     }

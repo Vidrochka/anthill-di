@@ -94,12 +94,12 @@ impl DependencyContext {
         DependencyBuilder::build_transient(self.scope.clone(), self.ctx.clone()).await
     }
 
-    pub async fn get_singleton<TType: Send + Sync + 'static>(&self) -> BuildDependencyResult<Arc<RwLock<TType>>> {
+    pub async fn get_singleton<TType: 'static>(&self) -> BuildDependencyResult<Arc<RwLock<TType>>> {
         DependencyBuilder::try_add_link::<Arc<RwLock<TType>>>(self.ctx.clone(), self.id.clone()).await?;
         DependencyBuilder::build_singleton(self.scope.clone(), self.ctx.clone()).await
     }
 
-    pub async fn get_scoped<TType: Send + Sync + 'static>(&self) -> BuildDependencyResult<Weak<RwLock<TType>>> {
+    pub async fn get_scoped<TType: 'static>(&self) -> BuildDependencyResult<Weak<RwLock<TType>>> {
         DependencyBuilder::try_add_link::<Weak<RwLock<TType>>>(self.ctx.clone(), self.id.clone()).await?;
         DependencyBuilder::build_scoped(self.scope.clone(), self.ctx.clone()).await
     }

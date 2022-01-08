@@ -6,6 +6,6 @@ use crate::{
 };
 
 #[async_trait(?Send)]
-pub trait Constructor where Self: Sized + Send + 'static {
+pub trait Constructor where Self: Sized + 'static {
     async fn ctor(ctx: DependencyContext) -> BuildDependencyResult<Self>;
 }

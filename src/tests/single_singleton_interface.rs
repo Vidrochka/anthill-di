@@ -17,7 +17,7 @@ impl Constructor for SingletonDependency {
     }
 }
 
-trait GetStr : Send + Sync {
+trait GetStr {
     fn get(&self) -> String;
 }
 

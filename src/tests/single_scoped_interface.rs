@@ -17,7 +17,7 @@ impl Constructor for ScopedDependency {
     }
 }
 
-trait GetStr : Sync + Send {
+trait GetStr {
     fn get(&self) -> String;
 }
 
