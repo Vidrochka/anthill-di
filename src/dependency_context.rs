@@ -1,5 +1,5 @@
 use std::{
-    any::{TypeId, type_name},
+    any::{TypeId, type_name, Any},
     sync::{
         Arc,
         Weak
@@ -86,6 +86,34 @@ impl DependencyContext {
         }
 
         dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
+        Ok(())
+    }
+
+    pub async fn add_singleton_instance<TType: 'static>(&self, instance: TType) -> AddDependencyResult<()> {
+        let id = TypeId::of::<Arc<RwLock<TType>>>();
+        let mut singleton_dependency_guard = self.ctx.singleton_dependency.write().await;
+
+        if singleton_dependency_guard.contains_key(&id) {
+            return Err(AddDependencyError::DependencyExist { id, name: type_name::<Arc<RwLock<TType>>>().to_string() });
+        }
+
+        let new_singleton = Arc::new(RwLock::new(Some(Box::new(Arc::new(RwLock::new(instance))) as Box<dyn Any>)));
+        singleton_dependency_guard.insert(id, new_singleton);
+
+        Ok(())
+    }
+
+    pub async fn add_scoped_instance<TType: 'static>(&self, instance: TType) -> AddDependencyResult<()> {
+        let id = TypeId::of::<Weak<RwLock<TType>>>();
+        let mut scoped_dependency_guard = self.scope.scoped_dependencies.write().await;
+
+        if scoped_dependency_guard.contains_key(&id) {
+            return Err(AddDependencyError::DependencyExist { id, name: type_name::<Weak<RwLock<TType>>>().to_string() });
+        }
+
+        let new_scoped = Arc::new(RwLock::new(Some(Box::new(Arc::new(RwLock::new(instance))) as Box<dyn Any>)));
+        scoped_dependency_guard.insert(id, new_scoped);
+
         Ok(())
     }
 
