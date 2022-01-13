@@ -10,16 +10,16 @@ use crate::{
     }
 };
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait ClosureDependencySetStrategy {
-    async fn set_transient_closure<TType: 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()>;
+    async fn set_transient_closure<TType: Sync + Send + 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()>;
     async fn set_singleton_closure<TType: Sync + Send + 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()>;
     async fn set_scoped_closure<TType: Sync + Send + 'static>(&self, closure:  AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl ClosureDependencySetStrategy for DependencyContext {
-    async fn set_transient_closure<TType: 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()> {
+    async fn set_transient_closure<TType: Sync + Send + 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TType>>) -> AddDependencyResult<()> {
         self.add_transient::<TType>(Box::new(ClosureConstructor::<TType>::new(closure))).await
     }
 

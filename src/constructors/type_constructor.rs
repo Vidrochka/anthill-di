@@ -13,17 +13,17 @@ use crate::{
 };
 
 pub struct BaseConstructor {
-    async_ctor: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any>>>,
+    async_ctor: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any + Sync + Send>>>,
 }
 
 impl BaseConstructor {
-    pub fn new<T>() -> Self where T: Constructor {
-        let ctor_wrapper: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any>>> = Box::new(
+    pub fn new<T>() -> Self where T: Constructor + Sync + Send {
+        let ctor_wrapper: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any + Sync + Send>>> = Box::new(
             move |ctx: DependencyContext| -> _{
                 Box::pin(
                     async move {
                         let instance = T::ctor(ctx).await?;
-                        Ok(Box::new(instance) as Box<dyn Any>)
+                        Ok(Box::new(instance) as Box<dyn Any + Sync + Send>)
                     }
                 )
             }
@@ -32,9 +32,9 @@ impl BaseConstructor {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl TypeConstructor for BaseConstructor {
-    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any>> {
+    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>> {
         (self.async_ctor)(ctx).await
     }
 }

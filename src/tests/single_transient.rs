@@ -7,7 +7,7 @@ struct TransientDependency {
     pub str: String,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for TransientDependency {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

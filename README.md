@@ -5,6 +5,7 @@ The library is for deep tree of dependencies
 
 Advantages:
  * async constructors (parallel building)
+ * runtime injection
  * runtime check dependency cycles
  * 3 type life cycle (transient/singleton/scoped)
  * 3 injection way (simple trait constructor, trait as interface for type with constructor, closure as constructor) 
@@ -39,7 +40,7 @@ struct TransientDependency {
     pub str: String,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for TransientDependency {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

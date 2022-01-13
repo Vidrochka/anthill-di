@@ -7,16 +7,16 @@ use crate::{
     types::AddDependencyResult
 };
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait ConstructedDependencySetStrategy {
-    async fn set_transient<TType: Constructor>(&self) -> AddDependencyResult<()>;
+    async fn set_transient<TType: Sync + Send + Constructor>(&self) -> AddDependencyResult<()>;
     async fn set_singleton<TType: Sync + Send + Constructor>(&self) -> AddDependencyResult<()>;
     async fn set_scoped<TType: Sync + Send + Constructor>(&self) -> AddDependencyResult<()>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl ConstructedDependencySetStrategy for DependencyContext {
-    async fn set_transient<TType: Constructor>(&self) -> AddDependencyResult<()> {
+    async fn set_transient<TType: Sync + Send + Constructor>(&self) -> AddDependencyResult<()> {
         self.add_transient::<TType>(Box::new(BaseConstructor::new::<TType>())).await
     }
 

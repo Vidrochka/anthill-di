@@ -10,7 +10,7 @@ struct SingletonDependency {
     pub str: String,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for SingletonDependency {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

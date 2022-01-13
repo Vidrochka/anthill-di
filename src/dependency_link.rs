@@ -27,7 +27,7 @@ impl DependencyLink {
         self.parents.insert(parent_id, parent);
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     pub (crate) async fn search_link(&self, id: &TypeId) -> bool {
         if let Some(_) = self.parents.get(&id) {
             return true;

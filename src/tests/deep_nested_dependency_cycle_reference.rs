@@ -10,7 +10,7 @@ struct TransientDependency1 {
     pub d2: TransientDependency2,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
@@ -24,7 +24,7 @@ struct TransientDependency2 {
     pub d1: Box<TransientDependency3>,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self {
@@ -38,7 +38,7 @@ struct TransientDependency3 {
     pub d1: Box<TransientDependency1>,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Constructor for TransientDependency3 {
     async fn ctor(ctx: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self {

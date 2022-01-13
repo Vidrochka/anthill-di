@@ -13,18 +13,18 @@ use crate::{
 };
 
 pub struct InterfaceConstructor {
-    async_ctor: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any>>>,
+    async_ctor: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any + Sync + Send>>>,
 }
 
 impl InterfaceConstructor {
-    pub fn new<TInterface: ?Sized + 'static, TType: Constructor + Unsize<TInterface>>() -> Self {
-        let ctor_wrapper: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any>>> = Box::new(
+    pub fn new<TInterface: Sync + Send + ?Sized + 'static, TType: Constructor + Unsize<TInterface>>() -> Self {
+        let ctor_wrapper: AsyncCallback<DependencyContext, BuildDependencyResult<Box<dyn Any + Sync + Send>>> = Box::new(
             move |ctx: DependencyContext| -> _{
                 Box::pin(
                     async move {
                         let instance = TType::ctor(ctx).await?;
                         let interface = Box::new(instance) as Box<TInterface>; 
-                        Ok(Box::new(interface) as Box<dyn Any>)
+                        Ok(Box::new(interface) as Box<dyn Any + Sync + Send>)
                     }
                 )
             }
@@ -33,9 +33,9 @@ impl InterfaceConstructor {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl TypeConstructor for InterfaceConstructor {
-    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any>> {
+    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>> {
         (self.async_ctor)(ctx).await
     }
 }

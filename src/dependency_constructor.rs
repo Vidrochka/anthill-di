@@ -5,7 +5,7 @@ use crate::{
     types::BuildDependencyResult
 };
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait Constructor where Self: Sized + 'static {
     async fn ctor(ctx: DependencyContext) -> BuildDependencyResult<Self>;
 }

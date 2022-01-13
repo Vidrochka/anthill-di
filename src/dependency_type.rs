@@ -30,7 +30,7 @@ impl Debug for DependencyType {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait TypeConstructor where Self: Sync + Send {
-    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any>>;
+    async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>>;
 }
