@@ -10,7 +10,7 @@ use std::{
 use tokio::sync::RwLock;
 
 pub struct DependencyScope {
-    pub (crate) scoped_dependencies: RwLock<HashMap<TypeId, Arc<RwLock<Option<Box<dyn Any>>>>>>,
+    pub (crate) scoped_dependencies: RwLock<HashMap<TypeId, Arc<RwLock<Option<Arc<dyn Any + Sync + Send>>>>>>,
 }
 
 impl DependencyScope {

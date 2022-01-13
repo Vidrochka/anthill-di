@@ -65,7 +65,7 @@ impl DependencyContext {
         Ok(())
     }
 
-    pub async fn add_singleton<TType: 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
+    pub async fn add_singleton<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
         let dependency = Dependency::new_singleton::<Arc<RwLock<TType>>>(ctor);
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
 
@@ -77,7 +77,7 @@ impl DependencyContext {
         Ok(())
     }
 
-    pub async fn add_scoped<TType: 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
+    pub async fn add_scoped<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
         let dependency = Dependency::new_scoped::<Weak<RwLock<TType>>>(ctor);
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
 
@@ -89,7 +89,7 @@ impl DependencyContext {
         Ok(())
     }
 
-    pub async fn add_singleton_instance<TType: 'static>(&self, instance: TType) -> AddDependencyResult<()> {
+    pub async fn add_singleton_instance<TType: Sync + Send + 'static>(&self, instance: TType) -> AddDependencyResult<()> {
         let id = TypeId::of::<Arc<RwLock<TType>>>();
         let mut singleton_dependency_guard = self.ctx.singleton_dependency.write().await;
 
@@ -97,13 +97,13 @@ impl DependencyContext {
             return Err(AddDependencyError::DependencyExist { id, name: type_name::<Arc<RwLock<TType>>>().to_string() });
         }
 
-        let new_singleton = Arc::new(RwLock::new(Some(Box::new(Arc::new(RwLock::new(instance))) as Box<dyn Any>)));
+        let new_singleton = Arc::new(RwLock::new(Some(Arc::new(RwLock::new(instance)) as Arc<dyn Any + Sync + Send>)));
         singleton_dependency_guard.insert(id, new_singleton);
 
         Ok(())
     }
 
-    pub async fn add_scoped_instance<TType: 'static>(&self, instance: TType) -> AddDependencyResult<()> {
+    pub async fn add_scoped_instance<TType: Sync + Send + 'static>(&self, instance: TType) -> AddDependencyResult<()> {
         let id = TypeId::of::<Weak<RwLock<TType>>>();
         let mut scoped_dependency_guard = self.scope.scoped_dependencies.write().await;
 
@@ -111,7 +111,7 @@ impl DependencyContext {
             return Err(AddDependencyError::DependencyExist { id, name: type_name::<Weak<RwLock<TType>>>().to_string() });
         }
 
-        let new_scoped = Arc::new(RwLock::new(Some(Box::new(Arc::new(RwLock::new(instance))) as Box<dyn Any>)));
+        let new_scoped = Arc::new(RwLock::new(Some(Arc::new(RwLock::new(instance)) as Arc<dyn Any + Sync + Send>)));
         scoped_dependency_guard.insert(id, new_scoped);
 
         Ok(())
@@ -122,12 +122,12 @@ impl DependencyContext {
         DependencyBuilder::build_transient(self.scope.clone(), self.ctx.clone()).await
     }
 
-    pub async fn get_singleton<TType: 'static>(&self) -> BuildDependencyResult<Arc<RwLock<TType>>> {
+    pub async fn get_singleton<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<Arc<RwLock<TType>>> {
         DependencyBuilder::try_add_link::<Arc<RwLock<TType>>>(self.ctx.clone(), self.id.clone()).await?;
         DependencyBuilder::build_singleton(self.scope.clone(), self.ctx.clone()).await
     }
 
-    pub async fn get_scoped<TType: 'static>(&self) -> BuildDependencyResult<Weak<RwLock<TType>>> {
+    pub async fn get_scoped<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<Weak<RwLock<TType>>> {
         DependencyBuilder::try_add_link::<Weak<RwLock<TType>>>(self.ctx.clone(), self.id.clone()).await?;
         DependencyBuilder::build_scoped(self.scope.clone(), self.ctx.clone()).await
     }

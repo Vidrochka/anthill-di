@@ -17,7 +17,7 @@ use crate::{
 pub (crate) struct DependencyCoreContext {
     pub (crate) dependency_collection: RwLock<HashMap<TypeId, Arc<Dependency>>>,
     pub (crate) dependency_link_collection: RwLock<HashMap<TypeId, Arc<RwLock<DependencyLink>>>>,
-    pub (crate) singleton_dependency: RwLock<HashMap<TypeId, Arc<RwLock<Option<Box<dyn Any>>>>>> // первые Arc<RwLock<>> для создания singletone без блокировки всей коллекции (блокируем отдельный тип)
+    pub (crate) singleton_dependency: RwLock<HashMap<TypeId, Arc<RwLock<Option<Arc<dyn Any + Sync + Send>>>>>> // первые Arc<RwLock<>> для создания singletone без блокировки всей коллекции (блокируем отдельный тип)
 }
 
 impl DependencyCoreContext {

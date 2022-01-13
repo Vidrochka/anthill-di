@@ -3,18 +3,12 @@ struct SingletonDependency {
     pub str: String,
 }
 
-impl SingletonDependency {
-    fn new() ->  Self {
-        Self { str: "test".to_string() }
-    }
-}
-
 #[tokio::test]
 async fn singleton_instance() {
     use crate::DependencyContext;
 
     let root_context = DependencyContext::new_root();
-    let instance = SingletonDependency::new();
+    let instance = SingletonDependency { str: "test".to_string() };
     root_context.add_singleton_instance(instance).await.unwrap();
 
     let dependency = root_context.get_singleton::<SingletonDependency>().await.unwrap();

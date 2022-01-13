@@ -9,7 +9,7 @@ use std::{
     }
 };
 
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::RwLock;
 
 use crate::{
     DependencyScope,
@@ -59,7 +59,7 @@ impl DependencyBuilder {
         }
     }
 
-    pub (crate) async fn build_singleton<T: 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Arc<RwLock<T>>> {
+    pub (crate) async fn build_singleton<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Arc<RwLock<T>>> {
         let dependency = DependencyBuilder::get_dependency::<Arc<RwLock<T>>>(&ctx).await;
 
         if let Some(dependency) = dependency {
@@ -94,23 +94,25 @@ impl DependencyBuilder {
 
             let new_instance_ref = Arc::new(RwLock::new(new_instance));
 
-            add_singleton_guard.replace(Box::new(new_instance_ref.clone()));
+            add_singleton_guard.replace(new_instance_ref.clone());
             
             ctx.dependency_collection.write().await.remove(&dependency.di_type.id);
 
             return Ok(new_instance_ref)
         } else {
             let id = TypeId::of::<Arc<RwLock<T>>>();
-            let singleton_dependency_guard = ctx.singleton_dependency.read().await;
 
-            if let Some(singleton_instance_rw_lock) = singleton_dependency_guard.get(&id) {
-                let mut singleton_guard = singleton_instance_rw_lock.write().await;
-                match (*singleton_guard).take() {
+            let singleton_dependency_read_guard = ctx.singleton_dependency.read().await;
+
+            if let Some(singleton_instance_ref) = singleton_dependency_read_guard.get(&id) {
+                let singleton_instance_ref = singleton_instance_ref.clone();
+                drop(singleton_dependency_read_guard);
+                
+                let singleton_read_guard = singleton_instance_ref.read().await;
+                match singleton_read_guard.clone() {
                     Some(singleton_ref) => {
-                        return match singleton_ref.downcast::<Arc<RwLock<T>>>() {
-                            Ok(res) => {
-                                let clone = (*res).clone();
-                                singleton_guard.replace(res);
+                        return match singleton_ref.downcast::<RwLock<T>>() {
+                            Ok(clone) => {
                                 Ok(clone)
                             },
                             Err(_) => Err(BuildDependencyError::InvalidCast {
@@ -130,18 +132,22 @@ impl DependencyBuilder {
         }
     }
 
-    pub (crate) async fn build_scoped<T: 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Weak<RwLock<T>>> {
+    pub (crate) async fn build_scoped<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Weak<RwLock<T>>> {
         let mut scope_dependency_guard = scope.scoped_dependencies.write().await;
 //TODO: подумать как блокировать в начале только на read
+
         let id = TypeId::of::<Weak<RwLock<T>>>();
         if let Some(scope_instance_rw_lock) = scope_dependency_guard.get(&id) {
-            let mut scoped_guard = scope_instance_rw_lock.write().await;
-            match (*scoped_guard).take() {
+            let scope_instance_rw_lock = scope_instance_rw_lock.clone();
+            drop(scope_dependency_guard);
+
+            let scoped_guard = scope_instance_rw_lock.write().await;
+
+            match scoped_guard.clone() {
                 Some(scoped_ref) => {
-                    return match scoped_ref.downcast::<Arc<RwLock<T>>>() {
+                    return match scoped_ref.downcast::<RwLock<T>>() {
                         Ok(res) => {
-                            let clone = Arc::downgrade(&((*res).clone()));
-                            scoped_guard.replace(res);
+                            let clone = Arc::downgrade(&res.clone());
                             Ok(clone)
                         },
                         Err(_) => Err(BuildDependencyError::InvalidCast { id: id.clone(), name: type_name::<T>().to_string() }),
@@ -180,7 +186,7 @@ impl DependencyBuilder {
 
             let new_instance_ref = Arc::new(RwLock::new(new_instance));
 
-            add_scoped_guard.replace(Box::new(new_instance_ref.clone()));
+            add_scoped_guard.replace(new_instance_ref.clone());
 
             return Ok(Arc::downgrade(&new_instance_ref))
         } else {

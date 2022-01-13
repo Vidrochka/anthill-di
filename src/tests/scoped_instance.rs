@@ -1,26 +1,19 @@
-use std::{sync::{Arc, Weak}, any::{TypeId, type_name}};
-
-use tokio::sync::RwLock;
-
-use crate::types::BuildDependencyError;
-
 #[allow(dead_code)]
 struct ScopedDependency {
     pub str: String,
 }
 
-impl ScopedDependency {
-    fn new() ->  Self {
-        Self { str: "test".to_string() }
-    }
-}
-
 #[tokio::test]
 async fn scoped_instance() {
     use crate::DependencyContext;
+    use crate::types::BuildDependencyError;
+
+    use std::{sync::{Arc, Weak}, any::{TypeId, type_name}};
+
+    use tokio::sync::RwLock;
 
     let mut root_context = DependencyContext::new_root();
-    let instance = ScopedDependency::new();
+    let instance = ScopedDependency { str: "test".to_string() };
     root_context.add_scoped_instance(instance).await.unwrap();
 
     let dependency = root_context.get_scoped::<ScopedDependency>().await.unwrap();
