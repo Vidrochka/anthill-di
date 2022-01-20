@@ -42,10 +42,10 @@ async fn nested_dependency_scoped() {
     use crate::extensions::ConstructedDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped::<ScopedDependency1>().await.unwrap();
-    root_context.set_scoped::<ScopedDependency2>().await.unwrap();
+    root_context.set_scoped::<RwLock<ScopedDependency1>>().await.unwrap();
+    root_context.set_scoped::<RwLock<ScopedDependency2>>().await.unwrap();
 
-    let dependency = root_context.get_scoped::<ScopedDependency2>().await.unwrap();
+    let dependency = root_context.get_scoped::<RwLock<ScopedDependency2>>().await.unwrap();
 
     dependency.upgrade().unwrap().read().await.d1.upgrade().unwrap().write().await.str = "test2".to_string();
 

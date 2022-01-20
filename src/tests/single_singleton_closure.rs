@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 use crate::{
     Constructor,
@@ -23,15 +24,15 @@ async fn single_singleton_closure() {
     use crate::extensions::ClosureDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton_closure::<SingletonDependency>(
+    root_context.set_singleton_closure::<RwLock<SingletonDependency>>(
         Box::new(move |_: crate::DependencyContext| {
             Box::pin (async move {
-                return Ok(SingletonDependency { str: "test".to_string() });
+                return Ok(RwLock::new(SingletonDependency { str: "test".to_string() }));
             })
         })
     ).await.unwrap();
 
-    let dependency = root_context.get_singleton::<SingletonDependency>().await.unwrap();
+    let dependency = root_context.get_singleton::<RwLock<SingletonDependency>>().await.unwrap();
 
     assert_eq!(dependency.read().await.str, "test".to_string());
 }

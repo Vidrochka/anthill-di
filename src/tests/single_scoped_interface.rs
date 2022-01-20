@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 use crate::{
     Constructor,
@@ -33,9 +34,9 @@ async fn single_scoped_interface() {
     use crate::extensions::InterfaceDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped_interface::<dyn GetStr, ScopedDependency>().await.unwrap();
+    root_context.set_scoped_interface::<RwLock<dyn GetStr>, RwLock<ScopedDependency>>().await.unwrap();
 
-    let dependency = root_context.get_scoped::<Box<dyn GetStr>>().await.unwrap();
+    let dependency = root_context.get_scoped::<Box<RwLock<dyn GetStr>>>().await.unwrap();
 
     assert_eq!(dependency.upgrade().unwrap().read().await.get(), "test".to_string());
 }

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 use crate::{
     Constructor,
@@ -33,9 +34,9 @@ async fn single_singleton_interface() {
     use crate::extensions::InterfaceDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton_interface::<dyn GetStr, SingletonDependency>().await.unwrap();
+    root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
 
-    let dependency = root_context.get_singleton::<Box<dyn GetStr>>().await.unwrap();
+    let dependency = root_context.get_singleton::<Box<RwLock<dyn GetStr>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.get(), "test".to_string());
 }

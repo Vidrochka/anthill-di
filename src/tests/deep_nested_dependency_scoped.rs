@@ -78,7 +78,7 @@ async fn deep_nested_dependency_scoped() {
     use crate::extensions::ConstructedDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped::<ScopedDependency1>().await.unwrap();
+    root_context.set_scoped::<RwLock<ScopedDependency1>>().await.unwrap();
     root_context.set_transient::<TransientDependency1>().await.unwrap();
     root_context.set_transient::<TransientDependency2>().await.unwrap();
     root_context.set_transient::<TransientDependency3>().await.unwrap();

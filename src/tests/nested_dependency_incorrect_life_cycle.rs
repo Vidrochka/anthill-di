@@ -54,7 +54,7 @@ async fn nested_dependency_incorrect_life_cycle() {
     let dependency = root_context.get_transient::<TransientDependency2>().await;
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound {
-        id: TypeId::of::<Arc<RwLock<TransientDependency1>>>(),
-        name: type_name::<Arc<RwLock<TransientDependency1>>>().to_string()
+        id: TypeId::of::<RwLock<TransientDependency1>>(),
+        name: type_name::<RwLock<TransientDependency1>>().to_string()
     }));
 }

@@ -42,10 +42,10 @@ async fn nested_dependency_singleton() {
     use crate::extensions::ConstructedDependencySetStrategy;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton::<SingletonDependency1>().await.unwrap();
-    root_context.set_singleton::<SingletonDependency2>().await.unwrap();
+    root_context.set_singleton::<RwLock<SingletonDependency1>>().await.unwrap();
+    root_context.set_singleton::<RwLock<SingletonDependency2>>().await.unwrap();
 
-    let dependency = root_context.get_singleton::<SingletonDependency2>().await.unwrap();
+    let dependency = root_context.get_singleton::<RwLock<SingletonDependency2>>().await.unwrap();
 
     dependency.read().await.d1.write().await.str = "test2".to_string();
 
