@@ -32,11 +32,12 @@ impl GetStr for ScopedDependency {
 async fn single_scoped_interface() {
     use crate::DependencyContext;
     use crate::extensions::InterfaceDependencySetStrategy;
+    use std::sync::Weak;
 
     let root_context = DependencyContext::new_root();
     root_context.set_scoped_interface::<RwLock<dyn GetStr>, RwLock<ScopedDependency>>().await.unwrap();
 
-    let dependency = root_context.get_scoped::<Box<RwLock<dyn GetStr>>>().await.unwrap();
+    let dependency = root_context.get::<Weak<Box<RwLock<dyn GetStr>>>>().await.unwrap();
 
     assert_eq!(dependency.upgrade().unwrap().read().await.get(), "test".to_string());
 }

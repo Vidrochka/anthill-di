@@ -54,13 +54,13 @@ fn main() {
         let root_context = DependencyContext::new_root();
         root_context.set_transient::<TransientDependency>().await.unwrap();
 
-        let mut dependency = root_context.get_transient::<TransientDependency>().await.unwrap();
+        let mut dependency = root_context.get::<TransientDependency>().await.unwrap();
 
         assert_eq!(dependency.str, "test".to_string());
 
         dependency.str = "test2".to_string();
 
-        let dependency2 = root_context.get_transient::<TransientDependency>().await.unwrap();
+        let dependency2 = root_context.get::<TransientDependency>().await.unwrap();
 
         assert_eq!(dependency2.str, "test".to_string());
     });

@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::{
     fmt::Debug,
     any::{
@@ -15,12 +16,17 @@ use crate::{
 
 pub (crate) struct DependencyType {
     pub (crate) id: TypeId,
+    pub (crate) name: String,
     pub (crate) ctor: Box<dyn TypeConstructor>,
 }
 
 impl DependencyType {
-    pub (crate) fn new(id: TypeId, ctor: Box<dyn TypeConstructor>) -> Self {
-        Self { id, ctor, }
+    pub (crate) fn new<T: 'static>(ctor: Box<dyn TypeConstructor>) -> Self {
+        Self {
+            id: TypeId::of::<T>(),
+            name: type_name::<T>().to_string(),
+            ctor: ctor,
+        }
     }
 }
 

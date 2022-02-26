@@ -32,11 +32,12 @@ impl GetStr for SingletonDependency {
 async fn single_singleton_interface() {
     use crate::DependencyContext;
     use crate::extensions::InterfaceDependencySetStrategy;
+    use std::sync::Arc;
 
     let root_context = DependencyContext::new_root();
     root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
 
-    let dependency = root_context.get_singleton::<Box<RwLock<dyn GetStr>>>().await.unwrap();
+    let dependency = root_context.get::<Arc<Box<RwLock<dyn GetStr>>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.get(), "test".to_string());
 }

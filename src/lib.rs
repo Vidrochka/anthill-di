@@ -1,4 +1,6 @@
 #![feature(unsize)]
+#![feature(downcast_unchecked)]
+#![feature(box_into_inner)]
 
 mod dependency_core_context;
 pub (crate) use dependency_core_context::*;

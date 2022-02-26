@@ -14,7 +14,7 @@ struct TransientDependency1 {
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d2: ctx.get_transient().await?,
+            d2: ctx.get().await?,
         })
     }
 }
@@ -28,7 +28,7 @@ struct TransientDependency2 {
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self {
-            d1: Box::new(ctx.get_transient().await?),
+            d1: Box::new(ctx.get().await?),
         })
     }
 }
@@ -42,7 +42,7 @@ struct TransientDependency3 {
 impl Constructor for TransientDependency3 {
     async fn ctor(ctx: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self {
-            d1: Box::new(ctx.get_transient().await?),
+            d1: Box::new(ctx.get().await?),
         })
     }
 }
@@ -61,7 +61,7 @@ async fn deep_nested_dependency_cycle_reference() {
     root_context.set_transient::<TransientDependency2>().await.unwrap();
     root_context.set_transient::<TransientDependency3>().await.unwrap();
 
-    let dependency = root_context.get_transient::<TransientDependency1>().await;
+    let dependency = root_context.get::<TransientDependency1>().await;
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::CyclicReference {
         id: TypeId::of::<TransientDependency1>(),

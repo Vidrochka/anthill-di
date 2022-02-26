@@ -1,0 +1,1 @@
+rustup override set nightly

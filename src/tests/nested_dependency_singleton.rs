@@ -30,8 +30,8 @@ struct SingletonDependency2 {
 impl Constructor for SingletonDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get_singleton().await?,
-            d2: ctx.get_singleton().await?,
+            d1: ctx.get().await?,
+            d2: ctx.get().await?,
         })
     }
 }
@@ -45,7 +45,7 @@ async fn nested_dependency_singleton() {
     root_context.set_singleton::<RwLock<SingletonDependency1>>().await.unwrap();
     root_context.set_singleton::<RwLock<SingletonDependency2>>().await.unwrap();
 
-    let dependency = root_context.get_singleton::<RwLock<SingletonDependency2>>().await.unwrap();
+    let dependency = root_context.get::<Arc<RwLock<SingletonDependency2>>>().await.unwrap();
 
     dependency.read().await.d1.write().await.str = "test2".to_string();
 

@@ -22,6 +22,7 @@ impl Constructor for SingletonDependency {
 async fn single_singleton_closure() {
     use crate::DependencyContext;
     use crate::extensions::ClosureDependencySetStrategy;
+    use std::sync::Arc;
 
     let root_context = DependencyContext::new_root();
     root_context.set_singleton_closure::<RwLock<SingletonDependency>>(
@@ -32,7 +33,7 @@ async fn single_singleton_closure() {
         })
     ).await.unwrap();
 
-    let dependency = root_context.get_singleton::<RwLock<SingletonDependency>>().await.unwrap();
+    let dependency = root_context.get::<Arc<RwLock<SingletonDependency>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.str, "test".to_string());
 }

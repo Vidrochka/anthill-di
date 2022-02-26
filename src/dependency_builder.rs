@@ -28,27 +28,20 @@ use crate::{
 pub struct DependencyBuilder {}
 
 impl DependencyBuilder {
-    pub (crate) async fn build_transient<T: 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<T> {
-        let dependency = DependencyBuilder::get_dependency::<T>(&ctx).await;
+    pub (crate) async fn build<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<T> {
+        let dependency = Self::get_dependency::<T>(&ctx).await;
 
         if let Some(dependency) = dependency {
-            if dependency.life_cycle_type != DependencyLifeCycle::Transient {
-                return Err(BuildDependencyError::InvalidLifeCycle {
-                    id: dependency.di_type.id.clone(),
-                    name: type_name::<T>().to_string(),
-                    expected: dependency.life_cycle_type.clone(),
-                    requested: DependencyLifeCycle::Transient,
-                })
-            }
-
             let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>()), ctx, scope);
             let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
 
             match new_instance_no_type.downcast::<T>() {
-                Ok(new_instance_with_type) => Ok(*new_instance_with_type),
+                Ok(new_instance_with_type) => Ok(Box::into_inner(new_instance_with_type)),
                 Err(_) => Err(BuildDependencyError::InvalidCast {
-                    id: dependency.di_type.id.clone(),
-                    name: type_name::<T>().to_string()
+                    from_id: dependency.di_type.id.clone(),
+                    from_name: dependency.di_type.name.clone(),
+                    to_id: TypeId::of::<T>(),
+                    to_name: type_name::<T>().to_string(),
                 }),
             }
         } else {
@@ -56,144 +49,6 @@ impl DependencyBuilder {
                 id: TypeId::of::<T>(),
                 name: type_name::<T>().to_string()
             })
-        }
-    }
-
-    pub (crate) async fn build_singleton<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Arc<T>> {
-        let dependency = DependencyBuilder::get_dependency::<T>(&ctx).await;
-
-        if let Some(dependency) = dependency {
-            if dependency.life_cycle_type != DependencyLifeCycle::Singleton {
-                return Err(BuildDependencyError::InvalidLifeCycle {
-                    id: dependency.di_type.id.clone(),
-                    name: type_name::<T>().to_string(),
-                    expected: dependency.life_cycle_type.clone(),
-                    requested: DependencyLifeCycle::Singleton,
-                })
-            }
-
-            let mut singleton_dependency_guard = ctx.singleton_dependency.write().await;
-
-            let new_singleton = Arc::new(RwLock::new(None));
-            singleton_dependency_guard.insert(dependency.di_type.id.clone(), new_singleton.clone());
-
-            let mut add_singleton_guard = new_singleton.write().await;
-
-            drop(singleton_dependency_guard);
-
-            let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>()), ctx.clone(), scope);
-            let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
-
-            let new_instance = match new_instance_no_type.downcast::<T>() {
-                Ok(new_instance_with_type) => *new_instance_with_type,
-                Err(_) => return Err(BuildDependencyError::InvalidCast {
-                    id: dependency.di_type.id.clone(),
-                    name: type_name::<T>().to_string()
-                }),
-            };
-
-            let new_instance_ref = Arc::new(new_instance);
-
-            add_singleton_guard.replace(new_instance_ref.clone());
-            
-            ctx.dependency_collection.write().await.remove(&dependency.di_type.id);
-
-            return Ok(new_instance_ref)
-        } else {
-            let id = TypeId::of::<T>();
-
-            let singleton_dependency_read_guard = ctx.singleton_dependency.read().await;
-
-            if let Some(singleton_instance_ref) = singleton_dependency_read_guard.get(&id) {
-                let singleton_instance_ref = singleton_instance_ref.clone();
-                drop(singleton_dependency_read_guard);
-                
-                let singleton_read_guard = singleton_instance_ref.read().await;
-                match singleton_read_guard.clone() {
-                    Some(singleton_ref) => {
-                        return match singleton_ref.downcast::<T>() {
-                            Ok(clone) => {
-                                Ok(clone)
-                            },
-                            Err(_) => Err(BuildDependencyError::InvalidCast {
-                                id,
-                                name: type_name::<T>().to_string()
-                            }),
-                        };
-                    },
-                    None => panic!("Singletone есть в коллекции, но не создан, ошибка логики"),
-                }
-            } else {
-                return Err(BuildDependencyError::NotFound {
-                    id: TypeId::of::<T>(),
-                    name: type_name::<T>().to_string()
-                });
-            }
-        }
-    }
-
-    pub (crate) async fn build_scoped<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<Weak<T>> {
-        let mut scope_dependency_guard = scope.scoped_dependencies.write().await;
-//TODO: подумать как блокировать в начале только на read
-
-        let id = TypeId::of::<T>();
-        if let Some(scope_instance_rw_lock) = scope_dependency_guard.get(&id) {
-            let scope_instance_rw_lock = scope_instance_rw_lock.clone();
-            drop(scope_dependency_guard);
-
-            let scoped_guard = scope_instance_rw_lock.write().await;
-
-            match scoped_guard.clone() {
-                Some(scoped_ref) => {
-                    return match scoped_ref.downcast::<T>() {
-                        Ok(res) => {
-                            let clone = Arc::downgrade(&res.clone());
-                            Ok(clone)
-                        },
-                        Err(_) => Err(BuildDependencyError::InvalidCast { id: id.clone(), name: type_name::<T>().to_string() }),
-                    };
-                },
-                None => panic!("Singletone есть в коллекции, но не создан, ошибка логики"),
-            }
-        }
-
-        let dependency = DependencyBuilder::get_dependency::<T>(&ctx).await;
-
-        if let Some(dependency) = dependency { 
-            if dependency.life_cycle_type != DependencyLifeCycle::Scoped {
-                return Err(BuildDependencyError::InvalidLifeCycle {
-                    id: dependency.di_type.id.clone(),
-                    name: type_name::<T>().to_string(),
-                    expected: dependency.life_cycle_type.clone(),
-                    requested: DependencyLifeCycle::Scoped,
-                })
-            }
-
-            let new_scoped = Arc::new(RwLock::new(None));
-            scope_dependency_guard.insert(dependency.di_type.id.clone(), new_scoped.clone());
-
-            let mut add_scoped_guard = new_scoped.write().await;
-
-            drop(scope_dependency_guard);
-
-            let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>()), ctx, scope.clone());
-            let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
-
-            let new_instance = match new_instance_no_type.downcast::<T>() {
-                Ok(new_instance_with_type) => *new_instance_with_type,
-                Err(_) => return Err(BuildDependencyError::InvalidCast { id: dependency.di_type.id.clone(), name: type_name::<T>().to_string() }),
-            };
-
-            let new_instance_ref = Arc::new(new_instance);
-
-            add_scoped_guard.replace(new_instance_ref.clone());
-
-            return Ok(Arc::downgrade(&new_instance_ref))
-        } else {
-            return Err(BuildDependencyError::NotFound {
-                id: TypeId::of::<T>(),
-                name: type_name::<T>().to_string()
-            });
         }
     }
 

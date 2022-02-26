@@ -8,7 +8,7 @@ pub type BuildDependencyResult<T> = Result<T, BuildDependencyError>;
 pub enum BuildDependencyError {
     NotFound { id: TypeId, name: String, },
     ParentNotFound { id: TypeId, name: String, parent_id: TypeId, },
-    InvalidCast { id: TypeId, name: String, },
+    InvalidCast { from_id: TypeId, from_name: String, to_id: TypeId, to_name: String },
     CyclicReference { id: TypeId, name: String, parent_id: TypeId, },
     InvalidLifeCycle { id: TypeId, name: String, expected: DependencyLifeCycle, requested: DependencyLifeCycle, },
     AddDependencyError { err: AddDependencyError },

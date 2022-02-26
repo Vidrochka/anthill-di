@@ -7,7 +7,6 @@ pub (crate) mod single_singleton_closure;
 pub (crate) mod singleton_instance;
 pub (crate) mod single_scoped;
 pub (crate) mod single_scoped_interface;
-pub (crate) mod scoped_instance;
 pub (crate) mod remove_scoped_dependency;
 pub (crate) mod nested_dependency_singleton;
 pub (crate) mod nested_dependency_scoped;

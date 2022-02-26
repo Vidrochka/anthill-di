@@ -24,16 +24,16 @@ impl Constructor for TransientDependency1 {
 
 #[allow(dead_code)]
 struct TransientDependency2 {
-    pub d1: Arc<RwLock<TransientDependency1>>,
-    pub d2: Arc<RwLock<TransientDependency1>>,
+    pub d1: Arc<TransientDependency1>,
+    pub d2: Arc<TransientDependency1>,
 }
 
 #[async_trait]
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get_singleton().await?,
-            d2: ctx.get_singleton().await?,
+            d1: ctx.get().await?,
+            d2: ctx.get().await?,
         })
     }
 }
@@ -51,10 +51,10 @@ async fn nested_dependency_incorrect_life_cycle() {
     root_context.set_transient::<TransientDependency1>().await.unwrap();
     root_context.set_transient::<TransientDependency2>().await.unwrap();
 
-    let dependency = root_context.get_transient::<TransientDependency2>().await;
+    let dependency = root_context.get::<TransientDependency2>().await;
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound {
-        id: TypeId::of::<RwLock<TransientDependency1>>(),
-        name: type_name::<RwLock<TransientDependency1>>().to_string()
+        id: TypeId::of::<Arc<TransientDependency1>>(),
+        name: type_name::<Arc<TransientDependency1>>().to_string()
     }));
 }

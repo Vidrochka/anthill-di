@@ -22,6 +22,7 @@ impl Constructor for ScopedDependency {
 async fn single_scoped_closure() {
     use crate::DependencyContext;
     use crate::extensions::ClosureDependencySetStrategy;
+    use std::sync::Weak;
 
     let root_context = DependencyContext::new_root();
     root_context.set_scoped_closure::<RwLock<ScopedDependency>>(
@@ -32,7 +33,7 @@ async fn single_scoped_closure() {
         })
     ).await.unwrap();
 
-    let dependency = root_context.get_scoped::<RwLock<ScopedDependency>>().await.unwrap();
+    let dependency = root_context.get::<Weak<RwLock<ScopedDependency>>>().await.unwrap();
 
     assert_eq!(dependency.upgrade().unwrap().read().await.str, "test".to_string());
 }

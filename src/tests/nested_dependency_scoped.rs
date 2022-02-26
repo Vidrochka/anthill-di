@@ -30,8 +30,8 @@ struct ScopedDependency2 {
 impl Constructor for ScopedDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get_scoped().await?,
-            d2: ctx.get_scoped().await?,
+            d1: ctx.get().await?,
+            d2: ctx.get().await?,
         })
     }
 }
@@ -45,7 +45,7 @@ async fn nested_dependency_scoped() {
     root_context.set_scoped::<RwLock<ScopedDependency1>>().await.unwrap();
     root_context.set_scoped::<RwLock<ScopedDependency2>>().await.unwrap();
 
-    let dependency = root_context.get_scoped::<RwLock<ScopedDependency2>>().await.unwrap();
+    let dependency = root_context.get::<Weak<RwLock<ScopedDependency2>>>().await.unwrap();
 
     dependency.upgrade().unwrap().read().await.d1.upgrade().unwrap().write().await.str = "test2".to_string();
 

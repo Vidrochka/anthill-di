@@ -14,7 +14,7 @@ use crate::{
     DependencyBuilder,
     Dependency,
     types::{BuildDependencyResult, AddDependencyResult, AddDependencyError},
-    TypeConstructor
+    TypeConstructor, DependencyLifeCycle, DependencyType, base::{SingletonConstructor, ScopedConstructor}
 };
 
 #[derive(PartialEq, Clone)]
@@ -26,7 +26,7 @@ pub (crate) enum DependencyContextId {
 pub struct DependencyContext {
     id: DependencyContextId,
     ctx: Arc<DependencyCoreContext>,
-    scope: Arc<DependencyScope>,
+    pub (crate) scope: Arc<DependencyScope>,
 }
 
 impl DependencyContext {
@@ -54,11 +54,13 @@ impl DependencyContext {
     pub fn get_scope(&self) -> Arc<DependencyScope> { self.scope.clone() }
 
     pub async fn add_transient<TType: 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
-        let dependency = Dependency::new_transient::<TType>(ctor);
+        let dependency_type = DependencyType::new::<TType>(ctor);
+        let dependency = Dependency::new(DependencyLifeCycle::Transient, dependency_type);
+
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: type_name::<TType>().to_string()});
+            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
         dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
@@ -66,11 +68,14 @@ impl DependencyContext {
     }
 
     pub async fn add_singleton<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
-        let dependency = Dependency::new_singleton::<TType>(ctor);
+        let ctor = Box::new(SingletonConstructor::new::<TType>(ctor));
+        let dependency_type = DependencyType::new::<Arc<TType>>(ctor);
+        let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
+
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: type_name::<TType>().to_string()});
+            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
         dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
@@ -78,11 +83,14 @@ impl DependencyContext {
     }
 
     pub async fn add_scoped<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<()> {
-        let dependency = Dependency::new_scoped::<TType>(ctor);
+        let ctor = Box::new(ScopedConstructor::new::<TType>(ctor));
+        let dependency_type = DependencyType::new::<Weak<TType>>(ctor);
+        let dependency = Dependency::new(DependencyLifeCycle::Scoped, dependency_type);
+
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: type_name::<TType>().to_string()});
+            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone() });
         }
 
         dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
@@ -90,45 +98,23 @@ impl DependencyContext {
     }
 
     pub async fn add_singleton_instance<TType: Sync + Send + 'static>(&self, instance: TType) -> AddDependencyResult<()> {
-        let id = TypeId::of::<TType>();
-        let mut singleton_dependency_guard = self.ctx.singleton_dependency.write().await;
+        let ctor = Box::new(SingletonConstructor::new_with_instance(Arc::new(instance)));
+        let dependency_type = DependencyType::new::<Arc<TType>>(ctor);
+        let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
 
-        if singleton_dependency_guard.contains_key(&id) {
-            return Err(AddDependencyError::DependencyExist { id, name: type_name::<TType>().to_string() });
+        let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
+
+        if dependency_collection_guard.contains_key(&dependency.di_type.id) {
+            return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
-        let new_singleton = Arc::new(RwLock::new(Some(Arc::new(instance) as Arc<dyn Any + Sync + Send>)));
-        singleton_dependency_guard.insert(id, new_singleton);
+        dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
 
         Ok(())
     }
 
-    pub async fn add_scoped_instance<TType: Sync + Send + 'static>(&self, instance: TType) -> AddDependencyResult<()> {
-        let id = TypeId::of::<TType>();
-        let mut scoped_dependency_guard = self.scope.scoped_dependencies.write().await;
-
-        if scoped_dependency_guard.contains_key(&id) {
-            return Err(AddDependencyError::DependencyExist { id, name: type_name::<TType>().to_string() });
-        }
-
-        let new_scoped = Arc::new(RwLock::new(Some(Arc::new(instance) as Arc<dyn Any + Sync + Send>)));
-        scoped_dependency_guard.insert(id, new_scoped);
-
-        Ok(())
-    }
-
-    pub async fn get_transient<TType: 'static>(&self) -> BuildDependencyResult<TType> {
+    pub async fn get<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<TType> {
         DependencyBuilder::try_add_link::<TType>(self.ctx.clone(), self.id.clone()).await?;
-        DependencyBuilder::build_transient(self.scope.clone(), self.ctx.clone()).await
-    }
-
-    pub async fn get_singleton<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<Arc<TType>> {
-        DependencyBuilder::try_add_link::<TType>(self.ctx.clone(), self.id.clone()).await?;
-        DependencyBuilder::build_singleton(self.scope.clone(), self.ctx.clone()).await
-    }
-
-    pub async fn get_scoped<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<Weak<TType>> {
-        DependencyBuilder::try_add_link::<TType>(self.ctx.clone(), self.id.clone()).await?;
-        DependencyBuilder::build_scoped(self.scope.clone(), self.ctx.clone()).await
+        DependencyBuilder::build(self.scope.clone(), self.ctx.clone()).await
     }
 }

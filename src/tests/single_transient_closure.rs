@@ -32,7 +32,7 @@ async fn single_transient_closure() {
         })
     ).await.unwrap();
 
-    let dependency = root_context.get_transient::<TransientDependency>().await.unwrap();
+    let dependency = root_context.get::<TransientDependency>().await.unwrap();
 
     assert_eq!(dependency.str, "test".to_string());
 }
