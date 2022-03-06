@@ -13,4 +13,12 @@ keywords = ["anthill", "di", "anthill-di", "dependency-injection", "build"]
 async-trait = "0.1.52"
 tokio = { version = "1.15.0", features = ["full"] }
 async-recursion = "1.0.0"
-uuid = "0.8.2"
+uuid = "0.8.2"harness = false[[bench]]
+
+[dev-dependencies]
+criterion = { version = "0.3.4", features = ["async_tokio"] }
+criterion-macro = "0.3.4"
+
+[[bench]]
+name = "single_transient"
+harness = false
