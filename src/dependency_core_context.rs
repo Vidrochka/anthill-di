@@ -1,8 +1,6 @@
 use std::{
     collections::HashMap,
-    any::{
-        TypeId,Any
-    },
+    any::TypeId,
     sync::Arc
 };
 
@@ -17,7 +15,6 @@ use crate::{
 pub (crate) struct DependencyCoreContext {
     pub (crate) dependency_collection: RwLock<HashMap<TypeId, Arc<Dependency>>>,
     pub (crate) dependency_link_collection: RwLock<HashMap<TypeId, Arc<RwLock<DependencyLink>>>>,
-    pub (crate) singleton_dependency: RwLock<HashMap<TypeId, Arc<RwLock<Option<Arc<dyn Any + Sync + Send>>>>>> // первые Arc<RwLock<>> для создания singletone без блокировки всей коллекции (блокируем отдельный тип)
 }
 
 impl DependencyCoreContext {
@@ -25,7 +22,6 @@ impl DependencyCoreContext {
         Self {
             dependency_collection: RwLock::new(HashMap::new()),
             dependency_link_collection: RwLock::new(HashMap::new()),
-            singleton_dependency: RwLock::new(HashMap::new()),
         }
     }
 }
