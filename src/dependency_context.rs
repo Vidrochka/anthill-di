@@ -1,12 +1,11 @@
+use crate::{DependencyLink, types::BuildDependencyError};
 use std::{
-    any::{TypeId, type_name, Any},
+    any::{TypeId, type_name},
     sync::{
         Arc,
         Weak
     }
 };
-
-use tokio::sync::RwLock;
 
 use crate::{
     DependencyCoreContext,
@@ -19,7 +18,7 @@ use crate::{
 
 #[derive(PartialEq, Clone)]
 pub (crate) enum DependencyContextId {
-    TypeId(TypeId),
+    TypeId(TypeId, String),
     Root,
 }
 
@@ -58,12 +57,15 @@ impl DependencyContext {
         let dependency = Dependency::new(DependencyLifeCycle::Transient, dependency_type);
 
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
+        let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
             return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
-        dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
+        dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
+        dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
+
         Ok(())
     }
 
@@ -73,12 +75,15 @@ impl DependencyContext {
         let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
 
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
+        let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
             return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
-        dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
+        dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
+        dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
+        
         Ok(())
     }
 
@@ -88,12 +93,15 @@ impl DependencyContext {
         let dependency = Dependency::new(DependencyLifeCycle::Scoped, dependency_type);
 
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
+        let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
             return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone() });
         }
 
-        dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
+        dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
+        dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
+
         Ok(())
     }
 
@@ -103,18 +111,31 @@ impl DependencyContext {
         let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
 
         let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
+        let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
 
         if dependency_collection_guard.contains_key(&dependency.di_type.id) {
             return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
         }
 
-        dependency_collection_guard.insert(dependency.di_type.id, Arc::new(dependency));
+        dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
+        dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
 
         Ok(())
     }
 
+    // Check link tree and build dependency
     pub async fn get<TType: Sync + Send + 'static>(&self) -> BuildDependencyResult<TType> {
-        DependencyBuilder::try_add_link::<TType>(self.ctx.clone(), self.id.clone()).await?;
+        if !self.ctx.dependency_collection.read().await.contains_key(&TypeId::of::<TType>()) {
+            return Err(BuildDependencyError::NotFound{
+                id: TypeId::of::<TType>(),
+                name: type_name::<TType>().to_string(),
+            })
+        }
+
+        if let DependencyContextId::TypeId(type_id, parent_name) = &self.id {
+            DependencyBuilder::try_add_link::<TType>(self.ctx.clone(), type_id, parent_name).await?;
+        }
+       
         DependencyBuilder::build(self.scope.clone(), self.ctx.clone()).await
     }
 }

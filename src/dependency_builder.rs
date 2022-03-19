@@ -5,16 +5,13 @@ use std::{
     },
     sync::{
         Arc,
-        Weak
-    }
+    },
+    collections::{HashMap, VecDeque}
 };
-
-use tokio::sync::RwLock;
 
 use crate::{
     DependencyScope,
     DependencyCoreContext,
-    Dependency,
     DependencyLink,
     DependencyContext,
     DependencyContextId,
@@ -22,91 +19,108 @@ use crate::{
         BuildDependencyResult,
         BuildDependencyError
     },
-    DependencyLifeCycle
 };
 
 pub struct DependencyBuilder {}
 
 impl DependencyBuilder {
     pub (crate) async fn build<T: Sync + Send + 'static>(scope: Arc<DependencyScope>, ctx: Arc<DependencyCoreContext>) -> BuildDependencyResult<T> {
-        let dependency = Self::get_dependency::<T>(&ctx).await;
+        let dependency_id = TypeId::of::<T>();
+        
+        let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>(), type_name::<T>().to_string()), ctx.clone(), scope);
 
-        if let Some(dependency) = dependency {
-            let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>()), ctx, scope);
-            let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
+        let dependency = ctx.dependency_collection.read().await.get(&dependency_id)
+            .expect(&format!("dependency not found, expected checked dependency TypeId:[{dependency_id:?}] type_name:[{type_name}]", type_name = type_name::<T>().to_string())).clone();
+            
+        let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
 
-            match new_instance_no_type.downcast::<T>() {
-                Ok(new_instance_with_type) => Ok(Box::into_inner(new_instance_with_type)),
-                Err(_) => Err(BuildDependencyError::InvalidCast {
-                    from_id: dependency.di_type.id.clone(),
-                    from_name: dependency.di_type.name.clone(),
-                    to_id: TypeId::of::<T>(),
-                    to_name: type_name::<T>().to_string(),
-                }),
-            }
-        } else {
-            Err(BuildDependencyError::NotFound {
-                id: TypeId::of::<T>(),
-                name: type_name::<T>().to_string()
-            })
+        return match new_instance_no_type.downcast::<T>() {
+            Ok(new_instance_with_type) => Ok(Box::into_inner(new_instance_with_type)),
+            Err(_) => Err(BuildDependencyError::InvalidCast {
+                from_id: dependency.di_type.id.clone(),
+                from_name: dependency.di_type.name.clone(),
+                to_id: dependency_id,
+                to_name: type_name::<T>().to_string(),
+            }),
         }
     }
 
-    pub (crate) async fn try_add_link<TChild: 'static>(ctx: Arc<DependencyCoreContext>, parent_id: DependencyContextId) -> BuildDependencyResult<()> {
-        let id = TypeId::of::<TChild>();
+    pub (crate) async fn try_add_link<TChild: 'static>(ctx: Arc<DependencyCoreContext>, parent_id: &TypeId, parent_name: &String) -> BuildDependencyResult<()> {
+        let child_id = TypeId::of::<TChild>();
 
-        let mut link_collection_guard = ctx.dependency_link_collection.write().await;
+        let links_collection_read_guard = ctx.dependency_link_collection.read().await;
 
-        if let DependencyContextId::TypeId(parent_id) = parent_id {
-            // если есть родитель, то он ранее был создан и имеется ссвязь с ним
-            // клон ссылки на связь чтобы отвязаться от лока всей коллекции
-            let parent_link = link_collection_guard.get(&parent_id).unwrap().clone();
-            
-            if let Some(child_link) = link_collection_guard.get(&id) {
-                // блокируем родительский объект на чтение для исключения параллельной проверки на зацикливание A->B и B->A
-                let parent_link_guard = parent_link.read().await;
+        let parent_links = links_collection_read_guard.get(&parent_id)
+            .expect(&format!("parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
 
-                // клон ссылки на связь чтобы отвязаться от лока всей коллекции
-                let child_link = child_link.clone();
-                // блокируем текущий объект для неизменности состояния связей
-                let mut child_link_guard = child_link.write().await;
-
-                drop(link_collection_guard); // заблокировали от изменений родительский и дочерний объект, нам больше не нужен лок всей коллекции
-
-                // если есть такой родитель, то все уже проверено
-                if child_link_guard.parents.contains_key(&parent_id) {
-                    return Ok(());
-                }
-    
-                // ищем ссылка на дочерний объект в родителях родительского объекта
-                if parent_link_guard.search_link(&id).await {
-                    return Err(BuildDependencyError::CyclicReference { id, name: type_name::<TChild>().to_string(), parent_id });
-                }
-        
-                // лишнее клонирование, возможно можно измежать, но хз как т.к первоначальный объект залочен
-                child_link_guard.add_parent(parent_id, parent_link.clone());
-                return Ok(());
-            }
-    
-            link_collection_guard.insert(id, Arc::new(RwLock::new(DependencyLink::with_parent(parent_id, parent_link))));
-    
+        // если связь уже проверена то все ок
+        if parent_links.childs.contains(&parent_id) {
             return Ok(());
         }
 
-        // если элемент корневой и нет в коллекции связей, добавляем
-        if !link_collection_guard.contains_key(&id) {
-            link_collection_guard.insert(id, Arc::new(RwLock::new(DependencyLink::new())));
+        // заранее (до write лока) валидируем зависимости, для возможности без write лока распознать ошибку
+        if !Self::validate_dependency(&links_collection_read_guard, parent_links, &child_id).await {
+            return Err(BuildDependencyError::CyclicReference {
+                child_id: child_id,
+                child_name: type_name::<TChild>().to_string(),
+                parent_id: parent_id.clone(),
+                parent_name: parent_name.clone(),
+            })
         }
-        
-        return Ok(());
+
+        drop(links_collection_read_guard);
+        // Необходима write блокировка, чтобы между зависимости в дереве не взяли write лок.
+        // В этом случае может произойти взаимная блокировка, т. a <- @ <- b <- @ <- a <- b , между 'b' write лок зависимости 'a', между 'a' write лок зависимости 'b' 
+        let mut links_collection_write_guard = ctx.dependency_link_collection.write().await;
+
+        let parent_links = links_collection_write_guard.get(&parent_id)
+            .expect(&format!("[we check is before, wtf? x2] parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
+
+        // повторно валидируем зависимости, на случай, если во время разблокировки было изменено дерево связей
+        // Получается оверхэд, т.к. 2 проверки, но этот оверхэд только для первого запроса, после валидация не будет происходить, т.к. связь будет сохранена
+        if !Self::validate_dependency(&links_collection_write_guard, parent_links, &child_id).await {
+            return Err(BuildDependencyError::CyclicReference {
+                child_id: child_id,
+                child_name: type_name::<TChild>().to_string(),
+                parent_id: parent_id.clone(),
+                parent_name: parent_name.clone(),
+            })
+        }
+
+        // TODO: убрать вовторную выборку связей
+        //Не придумал как повторно не доставать ссылку, и при этом не добавлять RwLock для каждой связи отдельно
+        drop(parent_links);
+
+        let parent_links = links_collection_write_guard.get_mut(&parent_id)
+            .expect(&format!("[we check is before, wtf?] parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
+
+        parent_links.childs.push(child_id);
+
+        let child_links = links_collection_write_guard.get_mut(&child_id)
+            .expect(&format!("[we check is before, wtf?] child dependency link required TypeId:[{child_id:?}] type_name:[{child_name:?}]", child_name = type_name::<TChild>().to_string()));
+
+        child_links.parents.push(parent_id.clone());
+
+        Ok(())
     }
 
-    pub (crate) async fn get_dependency<T: 'static>(ctx: &Arc<DependencyCoreContext>) -> Option<Arc<Dependency>> {
-        let id = TypeId::of::<T>();
+    async fn validate_dependency<'a>(links_map: &HashMap<TypeId, DependencyLink>, parent_links: &DependencyLink, child_id: &TypeId) -> bool {
+        let mut parents_collection = VecDeque::new();
+        parents_collection.push_back(&parent_links.parents);
+        
+        while let Some(deep_parents_id) = parents_collection.pop_front() {
+            if deep_parents_id.contains(child_id) {
+                return false
+            }
 
-        match ctx.dependency_collection.read().await.get(&id) {
-            Some(d) => Some(d.clone()),
-            None => None,
+            for deep_parent_id in deep_parents_id.iter() {
+                let deep_parent_parents = links_map.get(&deep_parent_id)
+                    .expect(&format!("deep parent link required TypeId:[{deep_parent_id:?}]"));
+
+                parents_collection.push_back(&deep_parent_parents.parents);
+            }
         }
+
+        true
     }
 }

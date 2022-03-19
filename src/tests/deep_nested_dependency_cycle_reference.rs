@@ -64,8 +64,9 @@ async fn deep_nested_dependency_cycle_reference() {
     let dependency = root_context.get::<TransientDependency1>().await;
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::CyclicReference {
-        id: TypeId::of::<TransientDependency1>(),
-        name: type_name::<TransientDependency1>().to_string(),
+        child_id: TypeId::of::<TransientDependency1>(),
+        child_name: type_name::<TransientDependency1>().to_string(),
         parent_id: TypeId::of::<TransientDependency3>(),
+        parent_name: type_name::<TransientDependency3>().to_string(),
     }));
 }

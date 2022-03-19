@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub (crate) struct DependencyCoreContext {
     pub (crate) dependency_collection: RwLock<HashMap<TypeId, Arc<Dependency>>>,
-    pub (crate) dependency_link_collection: RwLock<HashMap<TypeId, Arc<RwLock<DependencyLink>>>>,
+    pub (crate) dependency_link_collection: RwLock<HashMap<TypeId, DependencyLink>>,
 }
 
 impl DependencyCoreContext {

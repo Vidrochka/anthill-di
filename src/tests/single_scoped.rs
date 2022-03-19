@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
 use crate::{Constructor, types::BuildDependencyResult};
 
@@ -20,6 +19,7 @@ async fn single_scoped() {
     use crate::DependencyContext;
     use crate::extensions::ConstructedDependencySetStrategy;
     use std::sync::{Arc, Weak};
+    use tokio::sync::RwLock;
 
     let mut root_context = DependencyContext::new_root();
     root_context.set_scoped::<RwLock<ScopedDependency>>().await.unwrap();

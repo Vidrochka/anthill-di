@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
 use crate::{
     Constructor,
@@ -23,6 +22,7 @@ async fn single_scoped_closure() {
     use crate::DependencyContext;
     use crate::extensions::ClosureDependencySetStrategy;
     use std::sync::Weak;
+    use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
     root_context.set_scoped_closure::<RwLock<ScopedDependency>>(

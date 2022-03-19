@@ -1,5 +1,3 @@
-use tokio::sync::RwLock;
-
 #[allow(dead_code)]
 struct SingletonDependency {
     pub str: String,
@@ -9,6 +7,7 @@ struct SingletonDependency {
 async fn singleton_instance() {
     use crate::DependencyContext;
     use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
     let instance = SingletonDependency { str: "test".to_string() };

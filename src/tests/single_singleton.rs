@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
 use crate::{Constructor, types::BuildDependencyResult};
 
@@ -20,6 +19,7 @@ async fn single_singleton() {
     use crate::DependencyContext;
     use crate::extensions::ConstructedDependencySetStrategy;
     use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
     root_context.set_singleton::<RwLock<SingletonDependency>>().await.unwrap();
