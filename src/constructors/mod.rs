@@ -7,4 +7,7 @@ pub use interface_constructor::*;
 mod closure_constructor;
 pub use closure_constructor::*;
 
-pub mod base;
+// pub mod base;
+
+mod component_with_constructor;
+pub use component_with_constructor::*;

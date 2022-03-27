@@ -29,13 +29,17 @@ impl GetStr for TransientDependency {
 
 #[tokio::test]
 async fn single_transient_interface() {
-    use crate::DependencyContext;
-    use crate::extensions::InterfaceDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.set_transient_interface::<dyn GetStr, TransientDependency>().await.unwrap();
+    root_context.register::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap()
+        .map_component_as_trait_service::<TransientDependency, dyn GetStr>().await.unwrap();
+    
+    println!("{root_context:#?}");
 
     let dependency = root_context.get::<Box<dyn GetStr>>().await.unwrap();
 
     assert_eq!(dependency.get(), "test".to_string());
+
+    println!("{root_context:#?}");
 }

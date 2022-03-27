@@ -1,6 +1,7 @@
 #![feature(unsize)]
 #![feature(downcast_unchecked)]
 #![feature(box_into_inner)]
+#![feature(coerce_unsized)]
 
 mod core_context;
 pub (crate) use core_context::*;
@@ -26,8 +27,20 @@ pub use dependency_scope::*;
 mod dependency_builder;
 pub use dependency_builder::*;
 
-mod constructor;
-pub use constructor::*;
+mod dependency_constructor;
+pub use dependency_constructor::*;
+
+mod service_constructor;
+pub use service_constructor::*;
+
+mod service_mappings_collection;
+pub use service_mappings_collection::*;
+
+mod cycled_component_builder;
+pub use cycled_component_builder::*;
+
+mod global_scope;
+pub use global_scope::*;
 
 mod constructors;
 pub use constructors::*;

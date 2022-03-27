@@ -17,10 +17,12 @@ impl Constructor for TransientDependency {
 #[tokio::test]
 async fn single_transient() {
     use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::DependencyLifeCycle;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_transient::<TransientDependency>().await.unwrap();
+    root_context.register::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap();
+
+    println!("{root_context:#?}");
 
     let mut dependency = root_context.get::<TransientDependency>().await.unwrap();
 

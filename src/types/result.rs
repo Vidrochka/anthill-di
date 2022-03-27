@@ -19,5 +19,13 @@ pub type AddDependencyResult<T> = Result<T, AddDependencyError>;
 
 #[derive(Debug, PartialEq)]
 pub enum AddDependencyError {
-    DependencyExist { id: TypeId, name: String, }
+    DependencyExist { id: TypeId, name: String, },
+    
+}
+
+pub type MapComponentResult<T> = Result<T, MapComponentError>;
+
+#[derive(Debug, PartialEq)]
+pub enum MapComponentError {
+    ComponentNotFound { id: TypeId, name: String, },
 }

@@ -29,7 +29,7 @@ impl DependencyBuilder {
         
         let dependency_context = DependencyContext::new_dependency(DependencyContextId::TypeId(TypeId::of::<T>(), type_name::<T>().to_string()), ctx.clone(), scope);
 
-        let dependency = ctx.dependency_collection.read().await.get(&dependency_id)
+        let dependency = ctx.components.read().await.get(&dependency_id)
             .expect(&format!("dependency not found, expected checked dependency TypeId:[{dependency_id:?}] type_name:[{type_name}]", type_name = type_name::<T>().to_string())).clone();
             
         let new_instance_no_type = dependency.di_type.ctor.ctor(dependency_context).await?;
@@ -48,9 +48,9 @@ impl DependencyBuilder {
     pub (crate) async fn try_add_link<TChild: 'static>(ctx: Arc<DependencyCoreContext>, parent_id: &TypeId, parent_name: &String) -> BuildDependencyResult<()> {
         let child_id = TypeId::of::<TChild>();
 
-        let links_collection_read_guard = ctx.dependency_link_collection.read().await;
+        let links_read_guard = ctx.links.read().await;
 
-        let parent_links = links_collection_read_guard.get(&parent_id)
+        let parent_links = links_read_guard.get(&parent_id)
             .expect(&format!("parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
 
         // если связь уже проверена то все ок
@@ -59,7 +59,7 @@ impl DependencyBuilder {
         }
 
         // заранее (до write лока) валидируем зависимости, для возможности без write лока распознать ошибку
-        if !Self::validate_dependency(&links_collection_read_guard, parent_links, &child_id).await {
+        if !Self::validate_dependency(&links_read_guard, parent_links, &child_id).await {
             return Err(BuildDependencyError::CyclicReference {
                 child_id: child_id,
                 child_name: type_name::<TChild>().to_string(),
@@ -68,17 +68,17 @@ impl DependencyBuilder {
             })
         }
 
-        drop(links_collection_read_guard);
+        drop(links_read_guard);
         // Необходима write блокировка, чтобы между зависимости в дереве не взяли write лок.
         // В этом случае может произойти взаимная блокировка, т. a <- @ <- b <- @ <- a <- b , между 'b' write лок зависимости 'a', между 'a' write лок зависимости 'b' 
-        let mut links_collection_write_guard = ctx.dependency_link_collection.write().await;
+        let mut links_write_guard = ctx.links.write().await;
 
-        let parent_links = links_collection_write_guard.get(&parent_id)
+        let parent_links = links_write_guard.get(&parent_id)
             .expect(&format!("[we check is before, wtf? x2] parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
 
         // повторно валидируем зависимости, на случай, если во время разблокировки было изменено дерево связей
         // Получается оверхэд, т.к. 2 проверки, но этот оверхэд только для первого запроса, после валидация не будет происходить, т.к. связь будет сохранена
-        if !Self::validate_dependency(&links_collection_write_guard, parent_links, &child_id).await {
+        if !Self::validate_dependency(&links_write_guard, parent_links, &child_id).await {
             return Err(BuildDependencyError::CyclicReference {
                 child_id: child_id,
                 child_name: type_name::<TChild>().to_string(),
@@ -91,12 +91,12 @@ impl DependencyBuilder {
         //Не придумал как повторно не доставать ссылку, и при этом не добавлять RwLock для каждой связи отдельно
         drop(parent_links);
 
-        let parent_links = links_collection_write_guard.get_mut(&parent_id)
+        let parent_links = links_write_guard.get_mut(&parent_id)
             .expect(&format!("[we check is before, wtf?] parent dependency link required TypeId:[{parent_id:?}] type_name:[{parent_name:?}]"));
 
         parent_links.childs.push(child_id);
 
-        let child_links = links_collection_write_guard.get_mut(&child_id)
+        let child_links = links_write_guard.get_mut(&child_id)
             .expect(&format!("[we check is before, wtf?] child dependency link required TypeId:[{child_id:?}] type_name:[{child_name:?}]", child_name = type_name::<TChild>().to_string()));
 
         child_links.parents.push(parent_id.clone());
