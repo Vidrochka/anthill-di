@@ -14,7 +14,7 @@ struct TransientDependency1 {
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d2: ctx.get().await?,
+            d2: ctx.resolve().await?,
         })
     }
 }
@@ -28,30 +28,26 @@ struct TransientDependency2 {
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self {
-            d1: Box::new(ctx.get().await?),
+            d1: Box::new(ctx.resolve().await?),
         })
     }
 }
 
 #[tokio::test]
 async fn nested_dependency_cycle_reference() {
-    use std::any::{TypeId, type_name};
-    use crate::DependencyContext;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use crate::{
-        types::BuildDependencyError,
-        extensions::ConstructedDependencySetStrategy
+        types::{ BuildDependencyError, TypeInfo},
     };
     
     let root_context = DependencyContext::new_root();
-    root_context.set_transient::<TransientDependency1>().await.unwrap();
-    root_context.set_transient::<TransientDependency2>().await.unwrap();
+    root_context.register_type::<TransientDependency1>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
 
-    let dependency = root_context.get::<TransientDependency1>().await;
+    let dependency = root_context.resolve::<TransientDependency1>().await;
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::CyclicReference {
-        child_id: TypeId::of::<TransientDependency1>(),
-        child_name: type_name::<TransientDependency1>().to_string(),
-        parent_id: TypeId::of::<TransientDependency2>(),
-        parent_name: type_name::<TransientDependency2>().to_string(),
+        child_type_info: TypeInfo::from_type::<TransientDependency1>(),
+        parent_type_info: TypeInfo::from_type::<TransientDependency2>()
     }));
 }

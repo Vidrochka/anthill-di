@@ -1,7 +1,5 @@
-use tokio::sync::RwLock;
-use crate::{Constructor, ComponentWithConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder};
-use std::marker::Unsize;
-use crate::{DependencyLink, types::{BuildDependencyError, MapComponentResult, MapComponentError}, ServiceMappingsCollection, NoLogicService};
+use crate::{Constructor, ComponentFromConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder, types::{TypeInfo, AsyncCallback}, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
+use std::{marker::Unsize, collections::{HashMap, VecDeque}};
 use std::{
     any::{TypeId, type_name},
     sync::{
@@ -9,25 +7,27 @@ use std::{
         Weak
     }
 };
-
 use crate::{
     DependencyCoreContext,
     DependencyScope,
     DependencyBuilder,
     Dependency,
-    types::{BuildDependencyResult, AddDependencyResult, AddDependencyError},
-    TypeConstructor,
+    types::{
+        BuildDependencyResult,
+        AddDependencyResult,
+        AddDependencyError,
+        BuildDependencyError,
+        MapComponentResult,
+        MapComponentError,
+    },
     DependencyLifeCycle,
     DependencyType,
-    // base::{
-    //     SingletonConstructor,
-    //     ScopedConstructor
-    // }
+    DependencyLink,
 };
 
 #[derive(Debug, PartialEq, Clone)]
 pub (crate) enum DependencyContextId {
-    TypeId(TypeId, String),
+    TypeId(TypeInfo),
     Root,
 }
 
@@ -61,8 +61,27 @@ impl DependencyContext {
     }
     pub fn get_scope(&self) -> Arc<DependencyScope> { self.scope.clone() }
 
-    pub async fn register<TComponent: Constructor + Sync + Send + 'static>(&self, life_cycle: DependencyLifeCycle) -> AddDependencyResult<&Self> {
-        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentWithConstructor::<TComponent>::new()));
+    pub async fn register_type<TComponent: Constructor + Sync + Send + 'static>(&self, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromConstructor::<TComponent>::new()));
+        self.register::<TComponent>(component_type, life_cycle).await
+    }
+
+    pub async fn register_async_closure<TComponent: Sync + Send + 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TComponent>>, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromAsyncClosure::<TComponent>::new(closure)));
+        self.register::<TComponent>(component_type, life_cycle).await
+    }
+
+    pub async fn register_closure<TComponent: Sync + Send + 'static, TClosure: Fn(DependencyContext) -> BuildDependencyResult<TComponent> + Sync + Send + 'static>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromClosure::<TComponent>::new(Box::new(closure))));
+        self.register::<TComponent>(component_type, life_cycle).await
+    }
+
+    pub async fn register_instance<TComponent: Sync + Send + 'static>(&self, instance: TComponent) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromInstance::new(instance)));
+        self.register::<TComponent>(component_type, DependencyLifeCycle::Singleton).await
+    }
+
+    pub (crate) async fn register<TComponent: Sync + Send + 'static>(&self, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
         let component = Dependency::new(life_cycle.clone(), component_type);
 
         let component_id = component.di_type.id.clone();
@@ -71,7 +90,7 @@ impl DependencyContext {
         let mut components_guard = self.ctx.components.write().await;
         
         if components_guard.contains_key(&component.di_type.id) {
-            return Err(AddDependencyError::DependencyExist { id: component_id, name: component.di_type.name.clone()});
+            return Err(AddDependencyError::DependencyExist { type_info: TypeInfo::from_type::<TComponent>() });
         }
    
         components_guard.insert(component_id.clone(), Arc::new(component));
@@ -83,37 +102,10 @@ impl DependencyContext {
         //---------------------------
 
         // Пустой маппинг сомпонента
-        let mut services_write_guard = self.ctx.services.write().await;
-
-        let typed_component_id = match life_cycle {
-            DependencyLifeCycle::Transient => TypeId::of::<TComponent>(),
-            DependencyLifeCycle::Singleton => TypeId::of::<Arc<TComponent>>(),
-            DependencyLifeCycle::Scoped => TypeId::of::<Weak<TComponent>>(),
-        };
-
-        if !services_write_guard.contains_key(&typed_component_id) {
-            let service_mapping_collection = match life_cycle {
-                DependencyLifeCycle::Transient => ServiceMappingsCollection::new::<TComponent>(),
-                DependencyLifeCycle::Singleton =>  ServiceMappingsCollection::new::<Arc<TComponent>>(),
-                DependencyLifeCycle::Scoped => ServiceMappingsCollection::new::<Weak<TComponent>>(),
-            };
-
-            services_write_guard.insert(service_mapping_collection.get_service_info().type_id, Arc::new(RwLock::new(service_mapping_collection)));
-        }
-
         match life_cycle {
-            DependencyLifeCycle::Transient => {
-                let services = services_write_guard.get_mut(&typed_component_id).unwrap().clone();
-                services.write().await.add_mapping_component_to_component::<TComponent>();
-            },
-            DependencyLifeCycle::Singleton => {
-                let services = services_write_guard.get_mut(&typed_component_id).unwrap().clone();
-                services.write().await.add_mapping_component_to_component::<Arc<TComponent>>();
-            },
-            DependencyLifeCycle::Scoped => {
-                let services = services_write_guard.get_mut(&typed_component_id).unwrap().clone();
-                services.write().await.add_mapping_component_to_component::<Weak<TComponent>>();
-            },
+            DependencyLifeCycle::Transient => self.ctx.services.write().await.add_no_mappings::<TComponent>().await,
+            DependencyLifeCycle::Singleton => self.ctx.services.write().await.add_no_mappings::<Arc<TComponent>>().await,
+            DependencyLifeCycle::Scoped => self.ctx.services.write().await.add_no_mappings::<Weak<TComponent>>().await,
         }
         //---------------------------
 
@@ -130,137 +122,38 @@ impl DependencyContext {
 
         //---------------------------
 
-        Ok(self)
+        Ok(DependencyBuilder::new(self.ctx.clone()))
     }
 
-    // pub async fn add_transient<TComponent: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<&Self> {
-    //     let dependency_type = DependencyType::new::<TComponent>(ctor);
-    //     let dependency = Dependency::new(DependencyLifeCycle::Transient, dependency_type);
-
-    //     let component_id = dependency.di_type.id.clone();
-
-    //     // Проверяем наличие зависимости, если нет добавляем
-    //     let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
-        
-    //     if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-    //         return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
-    //     }
-   
-    //     dependency_collection_guard.insert(component_id.clone(), Arc::new(dependency));
-    //     //---------------------------
-
-    //     // Создаем ячейку свзяей без связей
-    //     let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
-    //     dependency_links_guard.insert(component_id.clone(), DependencyLink::new());
-    //     //---------------------------
-
-    //     // Пустой маппинг сомпонента
-    //     let mut services_write_guard = self.ctx.services.write().await;
-
-    //     if !services_write_guard.contains_key(&component_id) {
-    //         services_write_guard.insert(component_id, ServiceMappingsCollection::new());
-    //     }
-
-    //     let services = services_write_guard.get_mut(&dependency.di_type.id).expect("We check services exist, wtf???");
-    //     services.add_mapping_component_to_component::<TComponent>();
-    //     //---------------------------
-
-    //     Ok(self)
-    // }
-
-    // pub async fn add_singleton<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<&Self> {
-    //     let ctor = Box::new(SingletonConstructor::new::<TType>(ctor));
-    //     let dependency_type = DependencyType::new::<Arc<TType>>(ctor);
-    //     let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
-
-    //     let mut dependency_collection_guard = self.ctx.components.write().await;
-    //     let mut dependency_links_guard = self.ctx.links.write().await;
-
-    //     if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-    //         return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
-    //     }
-
-    //     dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
-    //     dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
-        
-    //     Ok(self)
-    // }
-
-    // pub async fn add_scoped<TType: Sync + Send + 'static>(&self, ctor: Box<dyn TypeConstructor>) -> AddDependencyResult<&Self> {
-    //     let ctor = Box::new(ScopedConstructor::new::<TType>(ctor));
-    //     let dependency_type = DependencyType::new::<Weak<TType>>(ctor);
-    //     let component = Dependency::new(DependencyLifeCycle::Scoped, dependency_type);
-
-    //     let mut components_guard = self.ctx.components.write().await;
-    //     let mut links_guard = self.ctx.links.write().await;
-
-    //     if components_guard.contains_key(&component.di_type.id) {
-    //         return Err(AddDependencyError::DependencyExist { id: component.di_type.id.clone(), name: component.di_type.name.clone() });
-    //     }
-
-    //     links_guard.insert(component.di_type.id.clone(), DependencyLink::new());
-    //     components_guard.insert(component.di_type.id.clone(), Arc::new(component));
-
-    //     Ok(self)
-    // }
-
-    // pub async fn add_singleton_instance<TType: Sync + Send + 'static>(&self, instance: TType) -> AddDependencyResult<&Self> {
-    //     let ctor = Box::new(SingletonConstructor::new_with_instance(Arc::new(instance)));
-    //     let dependency_type = DependencyType::new::<Arc<TType>>(ctor);
-    //     let dependency = Dependency::new(DependencyLifeCycle::Singleton, dependency_type);
-
-    //     let mut dependency_collection_guard = self.ctx.dependency_collection.write().await;
-    //     let mut dependency_links_guard = self.ctx.dependency_link_collection.write().await;
-
-    //     if dependency_collection_guard.contains_key(&dependency.di_type.id) {
-    //         return Err(AddDependencyError::DependencyExist { id: dependency.di_type.id.clone(), name: dependency.di_type.name.clone()});
-    //     }
-
-    //     dependency_links_guard.insert(dependency.di_type.id.clone(), DependencyLink::new());
-    //     dependency_collection_guard.insert(dependency.di_type.id.clone(), Arc::new(dependency));
-
-    //     Ok(self)
-    // }
-
-    pub async fn map_component_as_trait_service<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static>(&self) -> MapComponentResult<&Self> where TComponent: Unsize<TService> {
+    pub async fn map_component<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static>(&self) -> MapComponentResult<&Self> where TComponent: Unsize<TService> {
         let component_id = TypeId::of::<TComponent>();
-        let service_id = TypeId::of::<Box<TService>>();
 
-        if !self.ctx.cycled_component_builders.read().await.contains_key(&component_id) {
-            return Err(MapComponentError::ComponentNotFound{
-                id: component_id.clone(),
-                name: type_name::<TComponent>().to_string(),
-            });
+        let components_read_guard = self.ctx.components.read().await;
+        let component = components_read_guard.get(&component_id);
+
+        if component.is_none() {
+            return Err(MapComponentError::ComponentNotFound{ type_info: TypeInfo::from_type::<TComponent>() });
         }
+
+        let component = component.unwrap();
 
         let mut services_write_lock = self.ctx.services.write().await;
 
-        if !services_write_lock.contains_key(&service_id) {
-            let service_mappings_collection = ServiceMappingsCollection::new::<Box<TService>>();
-            services_write_lock.insert(service_mappings_collection.get_service_info().type_id, Arc::new(RwLock::new(service_mappings_collection)));
-        }
-
-        let services = services_write_lock.get_mut(&service_id).unwrap().clone();        
-        services.write().await.add_mapping_component_as_trait_service::<TComponent,TService>();
+        match component.life_cycle_type {
+            DependencyLifeCycle::Transient => services_write_lock.add_transient::<TComponent, TService>().await,
+            DependencyLifeCycle::Singleton => services_write_lock.add_singleton::<TComponent, TService>().await,
+            DependencyLifeCycle::Scoped => services_write_lock.add_scoped::<TComponent, TService>().await
+        };
 
         Ok(self)
     }
 
     // Check link tree and build dependency
-    pub async fn get<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
+    pub async fn resolve<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
         let service_id = TypeId::of::<TService>();
 
-        let services = match self.ctx.services.read().await.get(&service_id) {
-            Some(services) => services.clone(),
-            None => return Err(BuildDependencyError::NotFound{
-                id: service_id,
-                name: type_name::<TService>().to_string(),
-            }),
-        };
-
-        if let DependencyContextId::TypeId(type_id, parent_name) = &self.id {
-            DependencyBuilder::try_add_link::<TService>(self.ctx.clone(), type_id, parent_name).await?;
-        }
+        let services = self.ctx.services.read().await.get::<TService>()
+            .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
 
         let services_read_lock = services.read().await;
 
@@ -269,8 +162,15 @@ impl DependencyContext {
 
         let cycled_component_builder = self.ctx.cycled_component_builders.read().await
             .get(&service_info.0)
-            .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]"))
+            .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
             .clone();
+
+        let component_info = cycled_component_builder.get_input_type_info();
+
+        if let DependencyContextId::TypeId(type_info) = &self.id {
+            // Link created on dependency add, we need take link for dependency, not cycled dependency or service
+            check_link(self.ctx.clone(), component_info, type_info).await?;
+        }
 
         let cycled_component = cycled_component_builder.build(self.ctx.clone(), self.scope.clone()).await?;
         let service: Box<TService> = service_info.1.build(cycled_component)
@@ -281,4 +181,77 @@ impl DependencyContext {
        
         //DependencyBuilder::build(self.scope.clone(), self.ctx.clone()).await
     }
+}
+
+async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, parent_type_info: &TypeInfo) -> BuildDependencyResult<()> {
+    let links_read_guard = ctx.links.read().await;
+
+    let parent_links = links_read_guard.get(&parent_type_info.type_id)
+        .expect(&format!("parent dependency link required TypeInfo:[{child_type_info:?}]"));
+
+    // если связь уже проверена то все ок
+    if parent_links.childs.contains(&child_type_info.type_id) {
+        return Ok(());
+    }
+
+    // заранее (до write лока) валидируем зависимости, для возможности без write лока распознать ошибку
+    if !validate_dependency(&links_read_guard, parent_links, &child_type_info.type_id).await {
+        return Err(BuildDependencyError::CyclicReference {
+            child_type_info: child_type_info,
+            parent_type_info: parent_type_info.clone()
+        })
+    }
+
+    drop(links_read_guard);
+    // Необходима write блокировка, чтобы между зависимости в дереве не взяли write лок.
+    // В этом случае может произойти взаимная блокировка, т. a <- @ <- b <- @ <- a <- b , между 'b' write лок зависимости 'a', между 'a' write лок зависимости 'b' 
+    let mut links_write_guard = ctx.links.write().await;
+
+    let parent_links = links_write_guard.get(&parent_type_info.type_id)
+        .expect(&format!("[we check is before, wtf? x2] parent dependency link required TypeInfo:[{parent_type_info:?}]"));
+
+    // повторно валидируем зависимости, на случай, если во время разблокировки было изменено дерево связей
+    // Получается оверхэд, т.к. 2 проверки, но этот оверхэд только для первого запроса, после валидация не будет происходить, т.к. связь будет сохранена
+    if !validate_dependency(&links_write_guard, parent_links, &child_type_info.type_id).await {
+        return Err(BuildDependencyError::CyclicReference {
+            child_type_info: child_type_info,
+            parent_type_info: parent_type_info.clone()
+        })
+    }
+
+    // TODO: убрать вовторную выборку связей
+    //Не придумал как повторно не доставать ссылку, и при этом не добавлять RwLock для каждой связи отдельно
+    drop(parent_links);
+
+    let parent_links = links_write_guard.get_mut(&parent_type_info.type_id)
+        .expect(&format!("[we check is before, wtf?] parent dependency link required TypeInfo:[{parent_type_info:?}]"));
+
+    parent_links.childs.push(child_type_info.type_id);
+
+    let child_links = links_write_guard.get_mut(&child_type_info.type_id)
+        .expect(&format!("[we check is before, wtf?] child dependency link required TypeInfo:[{child_type_info:?}]"));
+
+    child_links.parents.push(parent_type_info.type_id.clone());
+
+    Ok(())
+}
+
+async fn validate_dependency<'a>(links_map: &HashMap<TypeId, DependencyLink>, parent_links: &DependencyLink, child_id: &TypeId) -> bool {
+    let mut parents_collection = VecDeque::new();
+    parents_collection.push_back(&parent_links.parents);
+    
+    while let Some(deep_parents_id) = parents_collection.pop_front() {
+        if deep_parents_id.contains(child_id) {
+            return false
+        }
+
+        for deep_parent_id in deep_parents_id.iter() {
+            let deep_parent_parents = links_map.get(&deep_parent_id)
+                .expect(&format!("deep parent link required TypeId:[{deep_parent_id:?}]"));
+
+            parents_collection.push_back(&deep_parent_parents.parents);
+        }
+    }
+
+    true
 }

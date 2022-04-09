@@ -32,14 +32,10 @@ async fn single_transient_interface() {
     use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.register::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap()
-        .map_component_as_trait_service::<TransientDependency, dyn GetStr>().await.unwrap();
+    root_context.register_type::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap()
+        .map_as::<dyn GetStr>().await.unwrap();
     
-    println!("{root_context:#?}");
-
-    let dependency = root_context.get::<Box<dyn GetStr>>().await.unwrap();
+    let dependency = root_context.resolve::<Box<dyn GetStr>>().await.unwrap();
 
     assert_eq!(dependency.get(), "test".to_string());
-
-    println!("{root_context:#?}");
 }

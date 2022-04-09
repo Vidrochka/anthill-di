@@ -30,23 +30,19 @@ pub use dependency_builder::*;
 mod dependency_constructor;
 pub use dependency_constructor::*;
 
-mod service_constructor;
-pub use service_constructor::*;
-
-mod service_mappings_collection;
-pub use service_mappings_collection::*;
+pub mod service;
 
 mod cycled_component_builder;
-pub use cycled_component_builder::*;
+pub (crate) use cycled_component_builder::*;
 
 mod global_scope;
-pub use global_scope::*;
+pub (crate) use global_scope::*;
 
 mod constructors;
-pub use constructors::*;
+pub (crate) use constructors::*;
 
 pub mod types;
 
-pub mod extensions;
 
+#[cfg(test)]
 pub mod tests;

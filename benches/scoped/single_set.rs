@@ -2,7 +2,7 @@
 use tokio::sync::RwLock;
 use tokio::runtime::Runtime;
 use async_trait::async_trait;
-use anthill_di::{DependencyContext, extensions::ConstructedDependencySetStrategy, types::BuildDependencyResult, Constructor};
+use anthill_di::{DependencyContext, types::BuildDependencyResult, Constructor, DependencyLifeCycle};
 
 use criterion::{criterion_group, Criterion};
 
@@ -24,7 +24,7 @@ pub fn benchmark_single_scoped_set(c: &mut Criterion) {
     },
     |root_context| async {
         let root_context = root_context;
-        root_context.set_scoped::<RwLock<ScopedDependency>>().await.unwrap();
+        root_context.register_type::<RwLock<ScopedDependency>>(DependencyLifeCycle::Scoped).await.unwrap();
     }));
 }
 

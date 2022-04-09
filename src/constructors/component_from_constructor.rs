@@ -8,17 +8,14 @@ use crate::TypeConstructor;
 use crate::Constructor;
 use crate::types::BuildDependencyResult;
 
+use derive_new::new;
 
-pub (crate) struct ComponentWithConstructor<TComponent: Constructor + Sync + Send> {
+#[derive(new)]
+pub (crate) struct ComponentFromConstructor<TComponent: Constructor + Sync + Send> {
     component_phantom_data: PhantomData<TComponent>,
 }
-
-impl<TComponent: Constructor + Sync + Send> ComponentWithConstructor<TComponent> {
-    #[must_use] pub (crate) fn new() -> Self { Self { component_phantom_data: PhantomData } }
-}
-
 #[async_trait]
-impl<TComponent: Constructor + Sync + Send> TypeConstructor for ComponentWithConstructor<TComponent> {
+impl<TComponent: Constructor + Sync + Send> TypeConstructor for ComponentFromConstructor<TComponent> {
     async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>> {
         let new_component = TComponent::ctor(ctx).await?;
         Ok(Box::new(new_component))

@@ -42,17 +42,16 @@ async fn single_singleton_interface() {
     use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
-    root_context.register::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).await.unwrap();
-    println!("{root_context:#?}");
-    //root_context.map_component_as_trait_service::<Arc<RwLock<SingletonDependency>>, Arc<RwLock<dyn GetStr>>>().await.unwrap();
+    root_context.register_type::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).await.unwrap()
+        .map_as::<RwLock<dyn GetStr>>().await.unwrap();
     //root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
 
-    let t = Arc::new(RwLock::new(SingletonDependency{ str: "test".to_string()}));
-    //let t2: Arc<RwLock<dyn GetStr>> = t.;
+    //let t = Arc::new(RwLock::new(SingletonDependency{ str: "test".to_string()}));
+    //let t2: Arc<RwLock<dyn GetStr>> = t as Arc<RwLock<dyn GetStr>>;
 
-    println!("{root_context:#?}");
+    //println!("{root_context:#?}");
 
-    let dependency = root_context.get::<Arc<RwLock<dyn GetStr>>>().await.unwrap();
+    let dependency = root_context.resolve::<Arc<RwLock<dyn GetStr>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.get(), "test".to_string());
 }

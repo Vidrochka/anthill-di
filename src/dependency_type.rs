@@ -1,10 +1,10 @@
-use std::any::type_name;
 use std::{
-    fmt::Debug,
     any::{
+        type_name,
         TypeId,
         Any
-    }
+    },
+    fmt::Debug
 };
 
 use async_trait::async_trait;

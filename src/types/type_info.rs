@@ -1,9 +1,17 @@
-use std::any::TypeId;
+use std::any::{TypeId, type_name};
+use derive_new::new;
 
-
-#[derive(Debug)]
-pub (crate) struct TypeInfo { pub (crate) type_id: TypeId, pub (crate) type_name: String, }
+#[derive(Debug, Clone, new, PartialEq)]
+pub struct TypeInfo {
+    pub type_id: TypeId,
+    pub type_name: String,
+}
 
 impl TypeInfo {
-    #[must_use] pub (crate) fn new(type_id: TypeId, type_name: String) -> Self { Self { type_id, type_name } }
+    pub fn from_type<TType: ?Sized + 'static>() -> Self {
+        Self {
+            type_id: TypeId::of::<TType>(),
+            type_name: type_name::<TType>().into(), 
+        }
+    }
 }

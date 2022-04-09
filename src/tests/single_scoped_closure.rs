@@ -19,21 +19,35 @@ impl Constructor for ScopedDependency {
 
 #[tokio::test]
 async fn single_scoped_closure() {
-    use crate::DependencyContext;
-    use crate::extensions::ClosureDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use std::sync::Weak;
     use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped_closure::<RwLock<ScopedDependency>>(
+    root_context.register_closure(|_| Ok(RwLock::new(ScopedDependency { str: "test".to_string() })), DependencyLifeCycle::Scoped).await.unwrap();
+
+    let dependency = root_context.resolve::<Weak<RwLock<ScopedDependency>>>().await.unwrap();
+
+    assert_eq!(dependency.upgrade().unwrap().read().await.str, "test".to_string());
+}
+
+#[tokio::test]
+async fn single_scoped_async_closure() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use std::sync::Weak;
+    use tokio::sync::RwLock;
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_async_closure(
         Box::new(move |_: crate::DependencyContext| {
             Box::pin (async move {
                 return Ok(RwLock::new(ScopedDependency { str: "test".to_string() }));
             })
-        })
+        }),
+        DependencyLifeCycle::Scoped
     ).await.unwrap();
 
-    let dependency = root_context.get::<Weak<RwLock<ScopedDependency>>>().await.unwrap();
+    let dependency = root_context.resolve::<Weak<RwLock<ScopedDependency>>>().await.unwrap();
 
     assert_eq!(dependency.upgrade().unwrap().read().await.str, "test".to_string());
 }

@@ -19,8 +19,8 @@ struct TransientDependency1 {
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            s1: ctx.get().await?,
-            t1: ctx.get().await?,
+            s1: ctx.resolve().await?,
+            t1: ctx.resolve().await?,
         })
     }
 }
@@ -39,8 +39,8 @@ impl Constructor for TransientDependency2 {
         let scope = ctx.set_empty_scope();
 
         Ok(Self {
-            s2: ctx.get().await?,
-            t2: ctx.get().await?,
+            s2: ctx.resolve().await?,
+            t2: ctx.resolve().await?,
             scope: scope,
         })
     }
@@ -55,7 +55,7 @@ struct TransientDependency3 {
 impl Constructor for TransientDependency3 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            s3: ctx.get().await?,
+            s3: ctx.resolve().await?,
         })
     }
 }
@@ -74,16 +74,15 @@ impl Constructor for ScopedDependency1 {
 
 #[tokio::test]
 async fn deep_nested_dependency_scoped() {
-    use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped::<RwLock<ScopedDependency1>>().await.unwrap();
-    root_context.set_transient::<TransientDependency1>().await.unwrap();
-    root_context.set_transient::<TransientDependency2>().await.unwrap();
-    root_context.set_transient::<TransientDependency3>().await.unwrap();
+    root_context.register_type::<RwLock<ScopedDependency1>>(DependencyLifeCycle::Scoped).await.unwrap();
+    root_context.register_type::<TransientDependency1>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency3>(DependencyLifeCycle::Transient).await.unwrap();
 
-    let dependency = root_context.get::<TransientDependency1>().await.unwrap();
+    let dependency = root_context.resolve::<TransientDependency1>().await.unwrap();
 
     dependency.s1.upgrade().unwrap().write().await.str = "test2".to_string();
 

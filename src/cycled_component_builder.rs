@@ -3,10 +3,18 @@ use core::fmt::Debug;
 use core::any::TypeId;
 use std::{any::{Any, type_name}, sync::{Arc, Weak}, marker::PhantomData};
 use async_trait::async_trait;
+use derive_new::new;
 
-use crate::{types::{BuildDependencyResult, TypeInfo}, core_context::DependencyCoreContext, DependencyScope, DependencyContextId, DependencyContext};
-
-
+use crate::{
+    types::{
+        BuildDependencyResult,
+        TypeInfo
+    },
+    core_context::DependencyCoreContext,
+    DependencyScope,
+    DependencyContextId,
+    DependencyContext
+};
 
 #[async_trait]
 pub (crate) trait ICycledComponentBuilder where Self: Sync + Send + 'static {
@@ -26,12 +34,9 @@ impl Debug for dyn ICycledComponentBuilder {
 
 // ----------- Maby move to self file -----------
 
+#[derive(Default, new)]
 pub (crate) struct SingletonComponentBuilder<TComponent: Sync + Send + 'static> {
-    component_phantom_data: PhantomData<TComponent>,
-}
-
-impl<TComponent: Sync + Send + 'static> SingletonComponentBuilder<TComponent> {
-    #[must_use] pub fn new() -> Self { Self { component_phantom_data: PhantomData } }
+    #[new(default)] component_phantom_data: PhantomData<TComponent>,
 }
 
 #[async_trait]
@@ -69,7 +74,7 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for SingletonCom
 
         let component_type_id = TypeId::of::<TComponent>();
 
-        let dependency_context_id = DependencyContextId::TypeId(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string());
+        let dependency_context_id = DependencyContextId::TypeId(TypeInfo::from_type::<TComponent>());
         let dependency_context = DependencyContext::new_dependency(dependency_context_id, ctx.clone(), scope.clone());
 
         let dependency = ctx.components.read().await.get(&component_type_id)
@@ -87,7 +92,7 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for SingletonCom
             ));
 
         let new_component_instance_ref = Arc::new(Box::into_inner(new_component_instance));
-        new_singleton_write_guard.insert(new_component_instance_ref.clone());
+        _ = new_singleton_write_guard.insert(new_component_instance_ref.clone());
 
         //global_scope_write_guard.singletons.insert(singleton_component_type_id, new_component_instance_ref.clone());
 
@@ -105,12 +110,9 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for SingletonCom
 
 // ----------- Maby move to self file -----------
 
+#[derive(Default, new)]
 pub (crate) struct ScopedComponentBuilder<TComponent: Sync + Send + 'static> {
-    component_phantom_data: PhantomData<TComponent>,
-}
-
-impl<TComponent: Sync + Send + 'static> ScopedComponentBuilder<TComponent> {
-    #[must_use] pub fn new() -> Self { Self { component_phantom_data: PhantomData } }
+    #[new(default)] component_phantom_data: PhantomData<TComponent>,
 }
 
 #[async_trait]
@@ -139,20 +141,6 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for ScopedCompon
                 ));
 
             return Ok(Box::new(scoped_component_instance));
-
-            // let scoped_component_instance_write_guard = scoped_component_instance_ref.read().await;
-
-            // if let Some(scoped_component_instance) = &*scoped_component_instance_write_guard {
-            //     let scoped_component_instance: Arc<TComponent> = scoped_component_instance.clone().downcast::<TComponent>()
-            //         .expect(&format!("Incorrect scoped type type_id_expected:[{type_id:?}] type_name_expected:[{type_name:?}]",
-            //             type_id = &scoped_component_type_id,
-            //             type_name = type_name::<Arc<TComponent>>().to_string()
-            //         ));
-
-            //     return Ok(Box::new(scoped_component_instance));
-            // } else {
-            //   panic!("singleton not initialized, but created")
-            // }
         }
 
         let new_scoped = Arc::new(RwLock::new(Option::<Arc<dyn Any + Sync + Send>>::None));
@@ -163,7 +151,7 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for ScopedCompon
 
         let component_type_id = TypeId::of::<TComponent>();
 
-        let dependency_context_id = DependencyContextId::TypeId(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string());
+        let dependency_context_id = DependencyContextId::TypeId(TypeInfo::from_type::<TComponent>());
         let dependency_context = DependencyContext::new_dependency(dependency_context_id, ctx.clone(), scope.clone());
 
         let dependency = ctx.components.read().await.get(&component_type_id)
@@ -181,7 +169,7 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for ScopedCompon
             ));
 
         let new_component_instance_ref = Arc::new(Box::into_inner(new_component_instance));
-        new_scoped_write_guard.insert(new_component_instance_ref.clone());
+        _ = new_scoped_write_guard.insert(new_component_instance_ref.clone());
 
         //local_scope_write_guard.insert(scoped_component_type_id, new_component_instance_ref.clone());
 
@@ -199,12 +187,9 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for ScopedCompon
 
 // ----------- Maby move to self file -----------
 
+#[derive(Default, new)]
 pub (crate) struct TransientComponentBuilder<TComponent: Sync + Send + 'static> {
-    component_phantom_data: PhantomData<TComponent>,
-}
-
-impl<TComponent: Sync + Send + 'static> TransientComponentBuilder<TComponent> {
-    #[must_use] pub fn new() -> Self { Self { component_phantom_data: PhantomData } }
+    #[new(default)] component_phantom_data: PhantomData<TComponent>,
 }
 
 #[async_trait]
@@ -212,7 +197,7 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for TransientCom
     async fn build(&self, ctx: Arc<DependencyCoreContext>, scope: Arc<DependencyScope>) -> BuildDependencyResult<Box<dyn Any + Sync + Send>> {
         let component_type_id = TypeId::of::<TComponent>();
 
-        let dependency_context_id = DependencyContextId::TypeId(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string());
+        let dependency_context_id = DependencyContextId::TypeId(TypeInfo::from_type::<TComponent>());
         let dependency_context = DependencyContext::new_dependency(dependency_context_id, ctx.clone(), scope.clone());
 
         let dependency = ctx.components.read().await.get(&component_type_id)

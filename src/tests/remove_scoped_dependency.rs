@@ -16,14 +16,13 @@ impl Constructor for ScopedDependency {
 
 #[tokio::test]
 async fn remove_scoped_dependency() {
-    use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use std::sync::Weak;
 
     let mut root_context = DependencyContext::new_root();
-    root_context.set_scoped::<ScopedDependency>().await.unwrap();
+    root_context.register_type::<ScopedDependency>(DependencyLifeCycle::Scoped).await.unwrap();
 
-    let dependency = root_context.get::<Weak<ScopedDependency>>().await.unwrap();
+    let dependency = root_context.resolve::<Weak<ScopedDependency>>().await.unwrap();
 
     assert!(dependency.upgrade().is_some());
 
@@ -31,7 +30,7 @@ async fn remove_scoped_dependency() {
 
     assert!(dependency.upgrade().is_none()); // зависимость удалилась, т.к. не осталось ссылок на скоуп
 
-    let dependency = root_context.get::<Weak<ScopedDependency>>().await.unwrap();
+    let dependency = root_context.resolve::<Weak<ScopedDependency>>().await.unwrap();
 
     root_context.set_empty_scope(); // устанавливаем новый чистый scope, ссылка на старый скоуп ранее сохранена в new_scope
 

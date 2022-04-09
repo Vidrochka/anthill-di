@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::runtime::Runtime;
 use async_trait::async_trait;
-use anthill_di::{DependencyContext, extensions::ConstructedDependencySetStrategy, types::BuildDependencyResult, Constructor};
+use anthill_di::{DependencyContext, types::BuildDependencyResult, Constructor, DependencyLifeCycle};
 
 use criterion::{black_box, criterion_group, Criterion};
 
@@ -25,8 +25,8 @@ pub fn benchmark_single_singleton_set_get(c: &mut Criterion) {
     },
     |root_context: DependencyContext| async {
         let root_context = root_context;
-        root_context.set_singleton::<RwLock<SingletonDependency>>().await.unwrap();
-        black_box(root_context.get::<Arc<RwLock<SingletonDependency>>>().await.unwrap())
+        root_context.register_type::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).await.unwrap();
+        black_box(root_context.resolve::<Arc<RwLock<SingletonDependency>>>().await.unwrap())
     }));
 }
 

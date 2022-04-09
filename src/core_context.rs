@@ -1,25 +1,32 @@
-use std::fmt::Debug;
-use crate::{ServiceMappingsCollection, ICycledComponentBuilder, GlobalScope};
 use std::{
     collections::HashMap,
     any::TypeId,
-    sync::Arc
+    sync::Arc,
+    fmt::Debug
 };
 
 use tokio::sync::RwLock;
+use derive_new::new;
 
 use crate::{
     Dependency,
-    DependencyLink
+    DependencyLink,
+    service::ServicesMappingsCollection,
+    ICycledComponentBuilder,
+    GlobalScope
 };
 
+
+
+
 //#[derive(Debug)]
+#[derive(Default, new)]
 pub (crate) struct DependencyCoreContext {
-    pub (crate) components: RwLock<HashMap<TypeId, Arc<Dependency>>>,
-    pub (crate) cycled_component_builders: RwLock<HashMap<TypeId, Arc<Box<dyn ICycledComponentBuilder>>>>,
-    pub (crate) services: RwLock<HashMap<TypeId, Arc<RwLock<ServiceMappingsCollection>>>>,
-    pub (crate) links: RwLock<HashMap<TypeId, DependencyLink>>,
-    pub (crate) global_scope: Arc<RwLock<GlobalScope>>,
+    #[new(default)] pub (crate) components: RwLock<HashMap<TypeId, Arc<Dependency>>>,
+    #[new(default)] pub (crate) cycled_component_builders: RwLock<HashMap<TypeId, Arc<Box<dyn ICycledComponentBuilder>>>>,
+    #[new(default)] pub (crate) services: RwLock<ServicesMappingsCollection>,
+    #[new(default)] pub (crate) links: RwLock<HashMap<TypeId, DependencyLink>>,
+    #[new(default)] pub (crate) global_scope: Arc<RwLock<GlobalScope>>,
 }
 
 impl Debug for DependencyCoreContext {
@@ -27,24 +34,9 @@ impl Debug for DependencyCoreContext {
         f.debug_struct("DependencyCoreContext")
             .field("cycled_component_builders", &self.cycled_component_builders.try_read().unwrap())
             .field("components", &self.components.try_read().unwrap())
-            .field("services", 
-            &self.services.try_read().unwrap()
-                .iter().map(|(id, services)| (id.clone(), services.try_read().unwrap())).collect::<HashMap<_, _>>()
-            )
+            .field("services", &self.services.try_read().unwrap())
             .field("links", &self.links.try_read().unwrap())
             .field("global_scope", &self.global_scope.try_read().unwrap())
             .finish()
-    }
-}
-
-impl DependencyCoreContext {
-    pub (crate) fn new() -> Self {
-        Self {
-            components: RwLock::new(HashMap::new()),
-            cycled_component_builders: RwLock::new(HashMap::new()),
-            services: RwLock::new(HashMap::new()),
-            links: RwLock::new(HashMap::new()),
-            global_scope: Arc::new(RwLock::new(GlobalScope::new()))
-        }
     }
 }
