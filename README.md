@@ -40,15 +40,16 @@ Library required Rust nightly for trait as interface (Unsize)
 
 ```rust
 
-use anthill_di::{
-    DependencyContext,
-    extensions::ConstructedDependencySetStrategy,
-    Constructor,
-    types::BuildDependencyResult
-};
-
+use async_trait::async_trait;
 use tokio::runtime::Runtime;
 use async_trait::async_trait;
+
+use anthill_di::{
+    Constructor,
+    types::BuildDependencyResult,
+    DependencyContext,
+    DependencyLifeCycle
+};
 
 struct TransientDependency {
     pub str: String,
@@ -61,28 +62,30 @@ impl Constructor for TransientDependency {
     }
 }
 
+trait GetStr: Sync + Send {
+    fn get(&self) -> String;
+}
+
+impl GetStr for TransientDependency {
+    fn get(&self) -> String {
+        self.str.clone()
+    }
+}
+
+#[tokio::main]
 fn main() {
-    let rt  = Runtime::new().unwrap();
+    let root_context = DependencyContext::new_root();
+    root_context.register_type::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap()
+        .map_as::<dyn GetStr>().await.unwrap();
+    
+    let dependency = root_context.resolve::<Box<dyn GetStr>>().await.unwrap();
 
-    rt.block_on(async {
-        let root_context = DependencyContext::new_root();
-        root_context.set_transient::<TransientDependency>().await.unwrap();
-
-        let mut dependency = root_context.get::<TransientDependency>().await.unwrap();
-
-        assert_eq!(dependency.str, "test".to_string());
-
-        dependency.str = "test2".to_string();
-
-        let dependency2 = root_context.get::<TransientDependency>().await.unwrap();
-
-        assert_eq!(dependency2.str, "test".to_string());
-    });
+    assert_eq!(dependency.get(), "test".to_string());
 }
 
 ```
 
-### More shared examples present in tests folder
+### More shared examples present in src/tests folder
 
 ---
 
