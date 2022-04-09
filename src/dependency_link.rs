@@ -1,13 +1,8 @@
 use std::any::TypeId;
+use derive_new::new;
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub (crate) struct DependencyLink {
-    pub (crate) parents: Vec<TypeId>,
-    pub (crate) childs: Vec<TypeId>,
-}
-
-impl DependencyLink {
-    pub (crate) fn new() -> Self {
-        Self { parents: Vec::new(), childs: Vec::new() }
-    }
+    #[new(default)] pub (crate) parents: Vec<TypeId>,
+    #[new(default)] pub (crate) childs: Vec<TypeId>,
 }

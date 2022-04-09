@@ -17,3 +17,4 @@ mod deep_nested_dependency_scoped;
 mod deep_nested_dependency_cycle_reference;
 mod add_dependency_from_dependency;
 mod  single_scoped_closure;
+mod multiple_service_realization;

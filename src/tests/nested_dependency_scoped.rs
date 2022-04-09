@@ -30,22 +30,21 @@ struct ScopedDependency2 {
 impl Constructor for ScopedDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get().await?,
-            d2: ctx.get().await?,
+            d1: ctx.resolve().await?,
+            d2: ctx.resolve().await?,
         })
     }
 }
 
 #[tokio::test]
 async fn nested_dependency_scoped() {
-    use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.set_scoped::<RwLock<ScopedDependency1>>().await.unwrap();
-    root_context.set_scoped::<RwLock<ScopedDependency2>>().await.unwrap();
+    root_context.register_type::<RwLock<ScopedDependency1>>(DependencyLifeCycle::Scoped).await.unwrap();
+    root_context.register_type::<RwLock<ScopedDependency2>>(DependencyLifeCycle::Scoped).await.unwrap();
 
-    let dependency = root_context.get::<Weak<RwLock<ScopedDependency2>>>().await.unwrap();
+    let dependency = root_context.resolve::<Weak<RwLock<ScopedDependency2>>>().await.unwrap();
 
     dependency.upgrade().unwrap().read().await.d1.upgrade().unwrap().write().await.str = "test2".to_string();
 

@@ -19,21 +19,35 @@ impl Constructor for SingletonDependency {
 
 #[tokio::test]
 async fn single_singleton_closure() {
-    use crate::DependencyContext;
-    use crate::extensions::ClosureDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton_closure::<RwLock<SingletonDependency>>(
+    root_context.register_closure(|_| Ok(RwLock::new(SingletonDependency { str: "test".to_string() })), DependencyLifeCycle::Singleton).await.unwrap();
+
+    let dependency = root_context.resolve::<Arc<RwLock<SingletonDependency>>>().await.unwrap();
+
+    assert_eq!(dependency.read().await.str, "test".to_string());
+}
+
+#[tokio::test]
+async fn single_singleton_async_closure() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_async_closure::<RwLock<SingletonDependency>>(
         Box::new(move |_: crate::DependencyContext| {
             Box::pin (async move {
                 return Ok(RwLock::new(SingletonDependency { str: "test".to_string() }));
             })
-        })
+        }),
+        DependencyLifeCycle::Singleton
     ).await.unwrap();
 
-    let dependency = root_context.get::<Arc<RwLock<SingletonDependency>>>().await.unwrap();
+    let dependency = root_context.resolve::<Arc<RwLock<SingletonDependency>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.str, "test".to_string());
 }

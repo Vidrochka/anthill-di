@@ -17,18 +17,18 @@ impl Constructor for TransientDependency {
 #[tokio::test]
 async fn single_transient() {
     use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::DependencyLifeCycle;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_transient::<TransientDependency>().await.unwrap();
+    root_context.register_type::<TransientDependency>(DependencyLifeCycle::Transient).await.unwrap();
 
-    let mut dependency = root_context.get::<TransientDependency>().await.unwrap();
+    let mut dependency = root_context.resolve::<TransientDependency>().await.unwrap();
 
     assert_eq!(dependency.str, "test".to_string());
 
     dependency.str = "test2".to_string(); // меняем состояние текущего объекта
 
-    let dependency2 = root_context.get::<TransientDependency>().await.unwrap();
+    let dependency2 = root_context.resolve::<TransientDependency>().await.unwrap();
 
     assert_eq!(dependency2.str, "test".to_string()); // состояние нового объекта не синхронизировано с измененным объектом
 }

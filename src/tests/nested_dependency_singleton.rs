@@ -30,22 +30,21 @@ struct SingletonDependency2 {
 impl Constructor for SingletonDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get().await?,
-            d2: ctx.get().await?,
+            d1: ctx.resolve().await?,
+            d2: ctx.resolve().await?,
         })
     }
 }
 
 #[tokio::test]
 async fn nested_dependency_singleton() {
-    use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton::<RwLock<SingletonDependency1>>().await.unwrap();
-    root_context.set_singleton::<RwLock<SingletonDependency2>>().await.unwrap();
+    root_context.register_type::<RwLock<SingletonDependency1>>(DependencyLifeCycle::Singleton).await.unwrap();
+    root_context.register_type::<RwLock<SingletonDependency2>>(DependencyLifeCycle::Singleton).await.unwrap();
 
-    let dependency = root_context.get::<Arc<RwLock<SingletonDependency2>>>().await.unwrap();
+    let dependency = root_context.resolve::<Arc<RwLock<SingletonDependency2>>>().await.unwrap();
 
     dependency.read().await.d1.write().await.str = "test2".to_string();
 

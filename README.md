@@ -1,24 +1,38 @@
 # anthill-di
-Rust di containers system
+
+Rust ioc system
 
 The library is for deep tree of dependencies
 
 Advantages:
- * async constructors (parallel building)
- * runtime injection
- * runtime check dependency cycles
- * 3 type life cycle (transient/singleton/scoped)
- * 3 injection way (simple trait constructor, trait as interface for type with constructor, closure as constructor) 
- * extensible dependency injection logic 
 
-Deficiencies: 
- * runtime check dependency cycles take some time for synchronize
- * async building take some time for synchronize
+* async constructors (parallel building)
+* runtime injection
+* runtime check dependency cycles
+* 3 type life cycle (transient/singleton/scoped)
+* 3 injection way (simple trait constructor, trait as interface for type with constructor, closure as constructor)
+* extensible dependency injection logic
+
+Deficiencies:
+
+* runtime check dependency cycles take some time for synchronize
+* async building take some time for synchronize
 
 ---
+
 ## Warning
 
 Library required Rust nightly for trait as interface (Unsize)
+
+---
+
+## Little overview
+
+1. Register dependency + how construct type + lifecycle
+    *automatically generate Component + LifecycleBuilder + fake Service as component to component*
+2. Register addition Service component to implemented trait (maby later something else like closure buildings)
+3. Request dependency
+ *validate link -> take first Service (or collection in future) -> call LifecycleBuilder by TypeId from Service -> LifecycleBuilder build Component as CycledInstance (empty/with Arc/with Weak) -> call Service with CycledInstance -> return Service*
 
 ---
 
@@ -68,9 +82,10 @@ fn main() {
 
 ```
 
-#### More shared examples present in tests folder
+### More shared examples present in tests folder
 
 ---
 
-#### Refs:
- - [crate.io](https://crates.io/crates/anthill-di)
+#### Refs
+
+* [crate.io](https://crates.io/crates/anthill-di)

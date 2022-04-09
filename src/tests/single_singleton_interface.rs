@@ -27,17 +27,31 @@ impl GetStr for SingletonDependency {
     }
 }
 
+// impl std::ops::CoerceUnsized<tokio::sync::RwLock<U>> for tokio::sync::RwLock<T>
+// where
+//     T: std::marker::Unsize<U> + ?Sized,
+//     U: ?Sized,
+// {
+
+// }
+
 #[tokio::test]
 async fn single_singleton_interface() {
-    use crate::DependencyContext;
-    use crate::extensions::InterfaceDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
-    root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
+    root_context.register_type::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).await.unwrap()
+        .map_as::<RwLock<dyn GetStr>>().await.unwrap();
+    //root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
 
-    let dependency = root_context.get::<Arc<Box<RwLock<dyn GetStr>>>>().await.unwrap();
+    //let t = Arc::new(RwLock::new(SingletonDependency{ str: "test".to_string()}));
+    //let t2: Arc<RwLock<dyn GetStr>> = t as Arc<RwLock<dyn GetStr>>;
+
+    //println!("{root_context:#?}");
+
+    let dependency = root_context.resolve::<Arc<RwLock<dyn GetStr>>>().await.unwrap();
 
     assert_eq!(dependency.read().await.get(), "test".to_string());
 }

@@ -31,29 +31,24 @@ struct TransientDependency2 {
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get().await?,
-            d2: ctx.get().await?,
+            d1: ctx.resolve().await?,
+            d2: ctx.resolve().await?,
         })
     }
 }
 
 #[tokio::test]
 async fn nested_dependency_incorrect_life_cycle() {
-    use std::any::{TypeId, type_name};
-    use crate::DependencyContext;
+    use crate::{DependencyContext, DependencyLifeCycle};
     use crate::{
-        types::BuildDependencyError,
-        extensions::ConstructedDependencySetStrategy
+        types::{BuildDependencyError, TypeInfo},
     };
     
     let root_context = DependencyContext::new_root();
-    root_context.set_transient::<TransientDependency1>().await.unwrap();
-    root_context.set_transient::<TransientDependency2>().await.unwrap();
+    root_context.register_type::<TransientDependency1>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
 
-    let dependency = root_context.get::<TransientDependency2>().await;
+    let dependency = root_context.resolve::<TransientDependency2>().await;
 
-    assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound {
-        id: TypeId::of::<Arc<TransientDependency1>>(),
-        name: type_name::<Arc<TransientDependency1>>().to_string()
-    }));
+    assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound { type_info: TypeInfo::from_type::<Arc<TransientDependency1>>() }));
 }

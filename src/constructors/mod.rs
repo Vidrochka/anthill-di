@@ -1,10 +1,11 @@
-mod type_constructor;
-pub use type_constructor::*;
+mod component_from_constructor;
+pub (crate) use component_from_constructor::*;
 
-mod interface_constructor;
-pub use interface_constructor::*;
+mod component_from_async_closure;
+pub (crate) use component_from_async_closure::*;
 
-mod closure_constructor;
-pub use closure_constructor::*;
+mod component_from_closure;
+pub (crate) use component_from_closure::*;
 
-pub mod base;
+mod component_from_instance;
+pub (crate) use component_from_instance::*;

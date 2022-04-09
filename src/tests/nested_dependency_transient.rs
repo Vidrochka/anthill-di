@@ -15,8 +15,8 @@ struct TransientDependency1 {
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
-            d1: ctx.get().await?,
-            d2: ctx.get().await?,
+            d1: ctx.resolve().await?,
+            d2: ctx.resolve().await?,
         })
     }
 }
@@ -35,14 +35,13 @@ impl Constructor for TransientDependency2 {
 
 #[tokio::test]
 async fn nested_dependency_transient() {
-    use crate::DependencyContext;
-    use crate::extensions::ConstructedDependencySetStrategy;
+    use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-    root_context.set_transient::<TransientDependency1>().await.unwrap();
-    root_context.set_transient::<TransientDependency2>().await.unwrap();
+    root_context.register_type::<TransientDependency1>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
 
-    let dependency = root_context.get::<TransientDependency1>().await.unwrap();
+    let dependency = root_context.resolve::<TransientDependency1>().await.unwrap();
 
     assert_eq!(dependency.d1.str, "test".to_string());
     assert_eq!(dependency.d2.str, "test".to_string());
