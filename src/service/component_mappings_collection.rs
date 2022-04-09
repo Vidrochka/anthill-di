@@ -59,4 +59,10 @@ impl ComponentMappingsCollection {
 
         self.service_mappings.iter().nth(n).expect(&format!("Expected n:[{n}] in range:[0]-[{to}]", to = self.service_mappings.len()))
     }
+
+    pub (crate) fn get_all_services_info(&self) -> Vec<(&TypeId, &Box<dyn IServiceConstructor>)> {
+        if self.service_mappings.is_empty() { panic!("empty service collection, incorrect logic"); }
+
+        self.service_mappings.iter().collect()
+    }
 }

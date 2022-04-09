@@ -152,7 +152,7 @@ impl DependencyContext {
     pub async fn resolve<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
         let service_id = TypeId::of::<TService>();
 
-        let services = self.ctx.services.read().await.get::<TService>()
+        let services = self.ctx.services.read().await.get_all_collection_by_service_type::<TService>()
             .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
 
         let services_read_lock = services.read().await;
@@ -178,8 +178,43 @@ impl DependencyContext {
             .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
 
         return Ok(Box::into_inner(service));
-       
-        //DependencyBuilder::build(self.scope.clone(), self.ctx.clone()).await
+    }
+
+    pub async fn resolve_collection<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<Vec<TService>> {
+        let service_id = TypeId::of::<TService>();
+
+        let services = self.ctx.services.read().await.get_all_collection_by_service_type::<TService>()
+            .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
+
+        let services_read_lock = services.read().await;
+
+        // { cycled_component_type_id , service_constructor }
+        let services_info = services_read_lock.get_all_services_info();
+
+        let mut result = Vec::new();
+        for service_info in services_info.iter() {
+            let cycled_component_builder = self.ctx.cycled_component_builders.read().await
+            .get(&service_info.0)
+            .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
+            .clone();
+
+            let component_info = cycled_component_builder.get_input_type_info();
+
+            if let DependencyContextId::TypeId(type_info) = &self.id {
+                // Link created on dependency add, we need take link for dependency, not cycled dependency or service
+                check_link(self.ctx.clone(), component_info, type_info).await?;
+            }
+
+            let cycled_component = cycled_component_builder.build(self.ctx.clone(), self.scope.clone()).await?;
+            let service: Box<TService> = service_info.1.build(cycled_component)
+                .downcast::<TService>()
+                .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
+
+            result.push(Box::into_inner(service));
+        }
+
+        
+       return Ok(result);
     }
 }
 

@@ -12,7 +12,8 @@ use super::ComponentMappingsCollection;
 #[derive(Default, new)]
 pub (crate) struct ServicesMappingsCollection {
     #[new(default)]
-    services: HashMap<TypeId, Arc<RwLock<ComponentMappingsCollection>>>
+    services: HashMap<TypeId, Arc<RwLock<ComponentMappingsCollection>>>,
+    //services_collections_type_mappings: HashMap<TypeId, TypeId>,
 }
 
 impl std::fmt::Debug for ServicesMappingsCollection {
@@ -72,8 +73,12 @@ impl ServicesMappingsCollection {
         component_mappings.write().await.map_component_as_weak_trait::<TComponent, TService>();
     }
 
-    pub (crate) fn get<TService: 'static>(&self) -> Option<Arc<RwLock<ComponentMappingsCollection>>> {
+    pub (crate) fn get_all_collection_by_service_type<TService: 'static>(&self) -> Option<Arc<RwLock<ComponentMappingsCollection>>> {
         let service_id = TypeId::of::<TService>();
+        self.get_all_collection_by_service_id(&service_id)
+    }
+
+    fn get_all_collection_by_service_id(&self, service_id: &TypeId) -> Option<Arc<RwLock<ComponentMappingsCollection>>> {
         if let Some(services) = self.services.get(&service_id) {
             return Some(services.clone())
         } else {
