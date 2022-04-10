@@ -27,14 +27,6 @@ impl GetStr for SingletonDependency {
     }
 }
 
-// impl std::ops::CoerceUnsized<tokio::sync::RwLock<U>> for tokio::sync::RwLock<T>
-// where
-//     T: std::marker::Unsize<U> + ?Sized,
-//     U: ?Sized,
-// {
-
-// }
-
 #[tokio::test]
 async fn single_singleton_interface() {
     use crate::{DependencyContext, DependencyLifeCycle};
@@ -44,12 +36,6 @@ async fn single_singleton_interface() {
     let root_context = DependencyContext::new_root();
     root_context.register_type::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).await.unwrap()
         .map_as::<RwLock<dyn GetStr>>().await.unwrap();
-    //root_context.set_singleton_interface::<RwLock<dyn GetStr>, RwLock<SingletonDependency>>().await.unwrap();
-
-    //let t = Arc::new(RwLock::new(SingletonDependency{ str: "test".to_string()}));
-    //let t2: Arc<RwLock<dyn GetStr>> = t as Arc<RwLock<dyn GetStr>>;
-
-    //println!("{root_context:#?}");
 
     let dependency = root_context.resolve::<Arc<RwLock<dyn GetStr>>>().await.unwrap();
 
