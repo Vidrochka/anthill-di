@@ -1,3 +1,5 @@
+[![build & tests](https://github.com/Vidrochka/anthill-di/actions/workflows/rust.yml/badge.svg)](https://github.com/Vidrochka/anthill-di/actions/workflows/rust.yml)
+
 # anthill-di
 
 Rust ioc system
