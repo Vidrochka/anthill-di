@@ -50,3 +50,18 @@ async fn nested_dependency_singleton() {
 
     assert_eq!(dependency.read().await.d2.read().await.str, "test2".to_string());
 }
+
+#[test]
+fn nested_dependency_singleton_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<RwLock<SingletonDependency1>>(DependencyLifeCycle::Singleton).unwrap();
+    root_context.register_type_sync::<RwLock<SingletonDependency2>>(DependencyLifeCycle::Singleton).unwrap();
+
+    let dependency = root_context.resolve_sync::<Arc<RwLock<SingletonDependency2>>>().unwrap();
+
+    dependency.blocking_read().d1.blocking_write().str = "test2".to_string();
+
+    assert_eq!(dependency.blocking_read().d2.blocking_read().str, "test2".to_string());
+}

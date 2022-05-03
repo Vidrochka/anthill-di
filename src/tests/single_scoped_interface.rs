@@ -41,3 +41,18 @@ async fn single_scoped_interface() {
 
     assert_eq!(dependency.upgrade().unwrap().read().await.get(), "test".to_string());
 }
+
+#[test]
+fn single_scoped_interface_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use std::sync::Weak;
+    use tokio::sync::RwLock;
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<RwLock<ScopedDependency>>(DependencyLifeCycle::Scoped).unwrap()
+        .map_as_sync::<RwLock<dyn GetStr>>().unwrap();
+
+    let dependency = root_context.resolve_sync::<Weak<RwLock<dyn GetStr>>>().unwrap();
+
+    assert_eq!(dependency.upgrade().unwrap().blocking_read().get(), "test".to_string());
+}

@@ -64,3 +64,16 @@ async fn single_transient() {
 
     assert_eq!(dependency.d1.d2.str, "test".to_string());
 }
+
+#[test]
+fn single_transient_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency1>().unwrap();
+
+    assert_eq!(dependency.d1.d2.str, "test".to_string());
+}

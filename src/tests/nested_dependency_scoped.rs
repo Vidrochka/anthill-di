@@ -50,3 +50,18 @@ async fn nested_dependency_scoped() {
 
     assert_eq!(dependency.upgrade().unwrap().read().await.d2.upgrade().unwrap().read().await.str, "test2".to_string());
 }
+
+#[test]
+fn nested_dependency_scoped_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<RwLock<ScopedDependency1>>(DependencyLifeCycle::Scoped).unwrap();
+    root_context.register_type_sync::<RwLock<ScopedDependency2>>(DependencyLifeCycle::Scoped).unwrap();
+
+    let dependency = root_context.resolve_sync::<Weak<RwLock<ScopedDependency2>>>().unwrap();
+
+    dependency.upgrade().unwrap().blocking_read().d1.upgrade().unwrap().blocking_write().str = "test2".to_string();
+
+    assert_eq!(dependency.upgrade().unwrap().blocking_read().d2.upgrade().unwrap().blocking_read().str, "test2".to_string());
+}

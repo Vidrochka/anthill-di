@@ -96,3 +96,28 @@ async fn deep_nested_dependency_scoped() {
     assert_eq!(dependency.t1.s2.upgrade().unwrap().read().await.str, "test3".to_string());
     assert_eq!(dependency.t1.t2.s3.upgrade().unwrap().read().await.str, "test3".to_string());
 }
+
+#[test]
+fn deep_nested_dependency_scoped_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<RwLock<ScopedDependency1>>(DependencyLifeCycle::Scoped).unwrap();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency3>(DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency1>().unwrap();
+
+    dependency.s1.upgrade().unwrap().blocking_write().str = "test2".to_string();
+
+    assert_eq!(dependency.s1.upgrade().unwrap().blocking_read().str, "test2".to_string());
+    assert_eq!(dependency.t1.s2.upgrade().unwrap().blocking_read().str, "test".to_string());
+    assert_eq!(dependency.t1.t2.s3.upgrade().unwrap().blocking_read().str, "test".to_string());
+
+    dependency.t1.s2.upgrade().unwrap().blocking_write().str = "test3".to_string();
+
+    assert_eq!(dependency.s1.upgrade().unwrap().blocking_read().str, "test2".to_string());
+    assert_eq!(dependency.t1.s2.upgrade().unwrap().blocking_read().str, "test3".to_string());
+    assert_eq!(dependency.t1.t2.s3.upgrade().unwrap().blocking_read().str, "test3".to_string());
+}

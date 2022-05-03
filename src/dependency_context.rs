@@ -1,3 +1,5 @@
+use tokio::runtime::Builder;
+
 use crate::{Constructor, ComponentFromConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder, types::TypeInfo, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
 use std::{marker::Unsize, collections::{HashMap, VecDeque}, future::Future};
 use std::{
@@ -66,6 +68,11 @@ impl DependencyContext {
         self.register::<TComponent>(component_type, life_cycle).await
     }
 
+    pub fn register_type_sync<TComponent: Constructor + Sync + Send + 'static>(&self, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromConstructor::<TComponent>::new()));
+        self.register_sync::<TComponent>(component_type, life_cycle)
+    }
+
     pub async fn register_async_closure<TComponent, TFuture, TClosure>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>>
     where
         TComponent: Sync + Send + 'static,
@@ -78,14 +85,36 @@ impl DependencyContext {
         self.register::<TComponent>(component_type, life_cycle).await
     }
 
+    pub fn register_async_closure_sync<TComponent, TFuture, TClosure>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>>
+    where
+        TComponent: Sync + Send + 'static,
+        TFuture: Future<Output = BuildDependencyResult<TComponent>>,
+        TFuture: Sync + Send + 'static,
+        TClosure: Fn(DependencyContext) -> TFuture,
+        TClosure: Sync + Send + 'static,
+    {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromAsyncClosure::<TComponent, TFuture, TClosure>::new(closure)));
+        self.register_sync::<TComponent>(component_type, life_cycle)
+    }
+
     pub async fn register_closure<TComponent: Sync + Send + 'static, TClosure: Fn(DependencyContext) -> BuildDependencyResult<TComponent> + Sync + Send + 'static>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
         let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromClosure::<TComponent>::new(Box::new(closure))));
         self.register::<TComponent>(component_type, life_cycle).await
     }
 
+    pub fn register_closure_sync<TComponent: Sync + Send + 'static, TClosure: Fn(DependencyContext) -> BuildDependencyResult<TComponent> + Sync + Send + 'static>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromClosure::<TComponent>::new(Box::new(closure))));
+        self.register_sync::<TComponent>(component_type, life_cycle)
+    }
+
     pub async fn register_instance<TComponent: Sync + Send + 'static>(&self, instance: TComponent) -> AddDependencyResult<DependencyBuilder<TComponent>> {
         let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromInstance::new(instance)));
         self.register::<TComponent>(component_type, DependencyLifeCycle::Singleton).await
+    }
+
+    pub fn register_instance_sync<TComponent: Sync + Send + 'static>(&self, instance: TComponent) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromInstance::new(instance)));
+        self.register_sync::<TComponent>(component_type, DependencyLifeCycle::Singleton)
     }
 
     pub (crate) async fn register<TComponent: Sync + Send + 'static>(&self, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
@@ -132,6 +161,11 @@ impl DependencyContext {
         Ok(DependencyBuilder::new(self.ctx.clone()))
     }
 
+    pub (crate) fn register_sync<TComponent: Sync + Send + 'static>(&self, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async move { self.register::<TComponent>(component_type, life_cycle).await })
+    }
+
     pub async fn map_component<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static>(&self) -> MapComponentResult<&Self> where TComponent: Unsize<TService> {
         let component_id = TypeId::of::<TComponent>();
 
@@ -153,6 +187,11 @@ impl DependencyContext {
         };
 
         Ok(self)
+    }
+
+    pub fn map_component_sync<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static>(&self) -> MapComponentResult<&Self> where TComponent: Unsize<TService> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async { self.map_component::<TComponent,TService>().await })
     }
 
     // Check link tree and build dependency
@@ -185,6 +224,11 @@ impl DependencyContext {
             .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
 
         return Ok(Box::into_inner(service));
+    }
+
+    pub fn resolve_sync<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async { self.resolve::<TService>().await })
     }
 
     pub async fn resolve_collection<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<Vec<TService>> {
@@ -223,6 +267,11 @@ impl DependencyContext {
         
        return Ok(result);
     }
+
+    pub fn resolve_collection_sync<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<Vec<TService>> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async { self.resolve_collection().await })
+    }
 }
 
 async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, parent_type_info: &TypeInfo) -> BuildDependencyResult<()> {
@@ -237,7 +286,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
     }
 
     // заранее (до write лока) валидируем зависимости, для возможности без write лока распознать ошибку
-    if !validate_dependency(&links_read_guard, parent_links, &child_type_info.type_id).await {
+    if !validate_dependency(&links_read_guard, parent_links, &child_type_info.type_id) {
         return Err(BuildDependencyError::CyclicReference {
             child_type_info: child_type_info,
             parent_type_info: parent_type_info.clone()
@@ -254,7 +303,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
 
     // повторно валидируем зависимости, на случай, если во время разблокировки было изменено дерево связей
     // Получается оверхэд, т.к. 2 проверки, но этот оверхэд только для первого запроса, после валидация не будет происходить, т.к. связь будет сохранена
-    if !validate_dependency(&links_write_guard, parent_links, &child_type_info.type_id).await {
+    if !validate_dependency(&links_write_guard, parent_links, &child_type_info.type_id) {
         return Err(BuildDependencyError::CyclicReference {
             child_type_info: child_type_info,
             parent_type_info: parent_type_info.clone()
@@ -278,7 +327,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
     Ok(())
 }
 
-async fn validate_dependency<'a>(links_map: &HashMap<TypeId, DependencyLink>, parent_links: &DependencyLink, child_id: &TypeId) -> bool {
+fn validate_dependency<'a>(links_map: &HashMap<TypeId, DependencyLink>, parent_links: &DependencyLink, child_id: &TypeId) -> bool {
     let mut parents_collection = VecDeque::new();
     parents_collection.push_back(&parent_links.parents);
     

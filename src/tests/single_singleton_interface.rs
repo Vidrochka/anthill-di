@@ -41,3 +41,18 @@ async fn single_singleton_interface() {
 
     assert_eq!(dependency.read().await.get(), "test".to_string());
 }
+
+#[test]
+fn single_singleton_interface_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<RwLock<SingletonDependency>>(DependencyLifeCycle::Singleton).unwrap()
+        .map_as_sync::<RwLock<dyn GetStr>>().unwrap();
+
+    let dependency = root_context.resolve_sync::<Arc<RwLock<dyn GetStr>>>().unwrap();
+
+    assert_eq!(dependency.blocking_read().get(), "test".to_string());
+}

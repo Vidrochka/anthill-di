@@ -46,3 +46,17 @@ async fn nested_dependency_transient() {
     assert_eq!(dependency.d1.str, "test".to_string());
     assert_eq!(dependency.d2.str, "test".to_string());
 }
+
+#[test]
+fn nested_dependency_transient_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency1>().unwrap();
+
+    assert_eq!(dependency.d1.str, "test".to_string());
+    assert_eq!(dependency.d2.str, "test".to_string());
+}

@@ -83,3 +83,24 @@ async fn multiple_service_realization() {
 
     assert_eq!(text_collection, vec!["test1", "test2", "test3"]);
 }
+
+#[test]
+fn multiple_service_realization_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap()
+        .map_as_sync::<dyn GetStr>().unwrap();
+
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap()
+        .map_as_sync::<dyn GetStr>().unwrap();
+
+    root_context.register_type_sync::<TransientDependency3>(DependencyLifeCycle::Transient).unwrap()
+        .map_as_sync::<dyn GetStr>().unwrap();
+    
+    let dependency = root_context.resolve_collection_sync::<Box<dyn GetStr>>().unwrap();
+    let mut text_collection = dependency.iter().map(|x| x.get()).collect::<Vec<_>>();
+    text_collection.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    assert_eq!(text_collection, vec!["test1", "test2", "test3"]);
+}

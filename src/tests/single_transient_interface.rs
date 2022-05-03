@@ -39,3 +39,16 @@ async fn single_transient_interface() {
 
     assert_eq!(dependency.get(), "test".to_string());
 }
+
+#[test]
+fn single_transient_interface_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency>(DependencyLifeCycle::Transient).unwrap()
+        .map_as_sync::<dyn GetStr>().unwrap();
+    
+    let dependency = root_context.resolve_sync::<Box<dyn GetStr>>().unwrap();
+
+    assert_eq!(dependency.get(), "test".to_string());
+}

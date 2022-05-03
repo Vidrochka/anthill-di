@@ -66,3 +66,23 @@ async fn deep_nested_dependency_cycle_reference() {
         parent_type_info: TypeInfo::from_type::<TransientDependency3>(),
     }));
 }
+
+#[test]
+fn deep_nested_dependency_cycle_reference_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use crate::{
+        types::{BuildDependencyError, TypeInfo},
+    };
+    
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency3>(DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency1>();
+
+    assert_eq!(dependency.err(), Some(BuildDependencyError::CyclicReference {
+        child_type_info: TypeInfo::from_type::<TransientDependency1>(),
+        parent_type_info: TypeInfo::from_type::<TransientDependency3>(),
+    }));
+}

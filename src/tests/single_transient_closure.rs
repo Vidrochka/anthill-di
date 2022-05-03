@@ -30,20 +30,24 @@ async fn single_transient_closure() {
     assert_eq!(dependency.str, "test".to_string());
 }
 
+#[test]
+fn single_transient_closure_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+
+    root_context.register_closure_sync(|_| Ok(TransientDependency { str: "test".to_string() }), DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency>().unwrap();
+
+    assert_eq!(dependency.str, "test".to_string());
+}
+
 #[tokio::test]
 async fn single_transient_async_closure() {
     use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
-
-    // root_context.register_async_closure(
-    //     Box::new(move |_: crate::DependencyContext| {
-    //         Box::pin (async move {
-    //             return Ok(TransientDependency { str: "test".to_string() });
-    //         })
-    //     }),
-    //     DependencyLifeCycle::Transient
-    // ).await.unwrap();
 
     root_context.register_async_closure(
         |_: crate::DependencyContext| { async { Ok(TransientDependency { str: "test".to_string() }) }},
@@ -51,6 +55,22 @@ async fn single_transient_async_closure() {
     ).await.unwrap();
 
     let dependency = root_context.resolve::<TransientDependency>().await.unwrap();
+
+    assert_eq!(dependency.str, "test".to_string());
+}
+
+#[test]
+fn single_transient_async_closure_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+
+    let root_context = DependencyContext::new_root();
+
+    root_context.register_async_closure_sync(
+        |_: crate::DependencyContext| { async { Ok(TransientDependency { str: "test".to_string() }) }},
+        DependencyLifeCycle::Transient
+    ).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency>().unwrap();
 
     assert_eq!(dependency.str, "test".to_string());
 }

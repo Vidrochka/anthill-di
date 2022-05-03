@@ -52,3 +52,19 @@ async fn nested_dependency_incorrect_life_cycle() {
 
     assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound { type_info: TypeInfo::from_type::<Arc<TransientDependency1>>() }));
 }
+
+#[test]
+fn nested_dependency_incorrect_life_cycle_sync() {
+    use crate::{DependencyContext, DependencyLifeCycle};
+    use crate::{
+        types::{BuildDependencyError, TypeInfo},
+    };
+    
+    let root_context = DependencyContext::new_root();
+    root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+
+    let dependency = root_context.resolve_sync::<TransientDependency2>();
+
+    assert_eq!(dependency.err(), Some(BuildDependencyError::NotFound { type_info: TypeInfo::from_type::<Arc<TransientDependency1>>() }));
+}

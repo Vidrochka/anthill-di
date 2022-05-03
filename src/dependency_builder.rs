@@ -2,6 +2,8 @@ use std::marker::Unsize;
 use std::{sync::Arc, marker::PhantomData, any::TypeId};
 
 
+use tokio::runtime::Builder;
+
 use crate::DependencyLifeCycle;
 use crate::types::TypeInfo;
 use crate::{core_context::DependencyCoreContext, types::{MapComponentError, MapComponentResult}};
@@ -43,5 +45,10 @@ impl<TComponent: Sync + Send + 'static> DependencyBuilder<TComponent> {
         drop(services_write_lock);
 
         Ok(self)
+    }
+
+    pub fn map_as_sync<TService: ?Sized + Sync + Send + 'static>(self) -> MapComponentResult<Self> where TComponent: Unsize<TService> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async { self.map_as::<TService>().await })
     }
 }
