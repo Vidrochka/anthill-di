@@ -39,11 +39,7 @@ async fn single_scoped_async_closure() {
 
     let root_context = DependencyContext::new_root();
     root_context.register_async_closure(
-        Box::new(move |_: crate::DependencyContext| {
-            Box::pin (async move {
-                return Ok(RwLock::new(ScopedDependency { str: "test".to_string() }));
-            })
-        }),
+        move |_: crate::DependencyContext| {async move { Ok(RwLock::new(ScopedDependency { str: "test".to_string() })) }},
         DependencyLifeCycle::Scoped
     ).await.unwrap();
 

@@ -36,12 +36,17 @@ async fn single_transient_async_closure() {
 
     let root_context = DependencyContext::new_root();
 
+    // root_context.register_async_closure(
+    //     Box::new(move |_: crate::DependencyContext| {
+    //         Box::pin (async move {
+    //             return Ok(TransientDependency { str: "test".to_string() });
+    //         })
+    //     }),
+    //     DependencyLifeCycle::Transient
+    // ).await.unwrap();
+
     root_context.register_async_closure(
-        Box::new(move |_: crate::DependencyContext| {
-            Box::pin (async move {
-                return Ok(TransientDependency { str: "test".to_string() });
-            })
-        }),
+        |_: crate::DependencyContext| { async { Ok(TransientDependency { str: "test".to_string() }) }},
         DependencyLifeCycle::Transient
     ).await.unwrap();
 

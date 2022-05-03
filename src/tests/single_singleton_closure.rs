@@ -38,12 +38,8 @@ async fn single_singleton_async_closure() {
     use tokio::sync::RwLock;
 
     let root_context = DependencyContext::new_root();
-    root_context.register_async_closure::<RwLock<SingletonDependency>>(
-        Box::new(move |_: crate::DependencyContext| {
-            Box::pin (async move {
-                return Ok(RwLock::new(SingletonDependency { str: "test".to_string() }));
-            })
-        }),
+    root_context.register_async_closure(
+        |_: crate::DependencyContext| { async move { Ok(RwLock::new(SingletonDependency { str: "test".to_string() }))} },
         DependencyLifeCycle::Singleton
     ).await.unwrap();
 

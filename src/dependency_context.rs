@@ -1,5 +1,5 @@
-use crate::{Constructor, ComponentFromConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder, types::{TypeInfo, AsyncCallback}, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
-use std::{marker::Unsize, collections::{HashMap, VecDeque}};
+use crate::{Constructor, ComponentFromConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder, types::TypeInfo, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
+use std::{marker::Unsize, collections::{HashMap, VecDeque}, future::Future};
 use std::{
     any::{TypeId, type_name},
     sync::{
@@ -66,8 +66,15 @@ impl DependencyContext {
         self.register::<TComponent>(component_type, life_cycle).await
     }
 
-    pub async fn register_async_closure<TComponent: Sync + Send + 'static>(&self, closure: AsyncCallback<DependencyContext, BuildDependencyResult<TComponent>>, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
-        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromAsyncClosure::<TComponent>::new(closure)));
+    pub async fn register_async_closure<TComponent, TFuture, TClosure>(&self, closure: TClosure, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>>
+    where
+        TComponent: Sync + Send + 'static,
+        TFuture: Future<Output = BuildDependencyResult<TComponent>>,
+        TFuture: Sync + Send + 'static,
+        TClosure: Fn(DependencyContext) -> TFuture,
+        TClosure: Sync + Send + 'static,
+    {
+        let component_type = DependencyType::new::<TComponent>(Box::new(ComponentFromAsyncClosure::<TComponent, TFuture, TClosure>::new(closure)));
         self.register::<TComponent>(component_type, life_cycle).await
     }
 

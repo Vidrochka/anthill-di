@@ -58,11 +58,7 @@ async fn _() {
 
     // adds component from async closure
     root_context.register_async_closure(
-        Box::new(move |_: crate::DependencyContext| {
-            Box::pin (async move {
-                return Ok(SomeComponent {});
-            })
-        }),
+        move |_: crate::DependencyContext| { async move { Ok(SomeComponent {}) }},
         DependencyLifeCycle::Transient
     ).await.unwrap();
 
