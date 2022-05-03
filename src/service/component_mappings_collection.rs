@@ -60,6 +60,12 @@ impl ComponentMappingsCollection {
         self.service_mappings.iter().nth(n).expect(&format!("Expected n:[{n}] in range:[0]-[{to}]", to = self.service_mappings.len()))
     }
 
+    pub (crate) fn get_by_type_id(&self, component_type_id: &TypeId) -> &Box<dyn IServiceConstructor> {
+        if self.service_mappings.is_empty() { panic!("empty service collection, incorrect logic"); }
+
+        self.service_mappings.get(&component_type_id).expect(&format!("Expected mapping component type_id:[{component_type_id:?}] to service type_id:[{service_type_id:?}]", service_type_id = self.service_type_info.type_id))
+    }
+
     pub (crate) fn get_all_services_info(&self) -> Vec<(&TypeId, &Box<dyn IServiceConstructor>)> {
         if self.service_mappings.is_empty() { panic!("empty service collection, incorrect logic"); }
 

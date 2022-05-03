@@ -1,6 +1,7 @@
 mod single_transient;
 mod single_transient_interface;
 mod single_transient_closure;
+mod single_transient_resolve_by_type_id;
 mod single_singleton;
 mod single_singleton_interface;
 mod single_singleton_closure;

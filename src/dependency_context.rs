@@ -117,6 +117,7 @@ impl DependencyContext {
         self.register_sync::<TComponent>(component_type, DependencyLifeCycle::Singleton)
     }
 
+    /// Register component and add as self service
     pub (crate) async fn register<TComponent: Sync + Send + 'static>(&self, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
         let component = Dependency::new(life_cycle.clone(), component_type);
 
@@ -166,6 +167,7 @@ impl DependencyContext {
         rt.block_on(async move { self.register::<TComponent>(component_type, life_cycle).await })
     }
 
+    /// Add mapping component to service
     pub async fn map_component<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static>(&self) -> MapComponentResult<&Self> where TComponent: Unsize<TService> {
         let component_id = TypeId::of::<TComponent>();
 
@@ -194,7 +196,7 @@ impl DependencyContext {
         rt.block_on(async { self.map_component::<TComponent,TService>().await })
     }
 
-    // Check link tree and build dependency
+    /// Resolve first (by TypeId) dependency
     pub async fn resolve<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
         let service_id = TypeId::of::<TService>();
 
@@ -229,6 +231,42 @@ impl DependencyContext {
     pub fn resolve_sync<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<TService> {
         let rt = Builder::new_current_thread().enable_all().build().unwrap();
         rt.block_on(async { self.resolve::<TService>().await })
+    }
+
+    pub async fn resolve_by_type_id<TService: Sync + Send + 'static>(&self, component_type_id: TypeId) -> BuildDependencyResult<TService> {
+        let service_id = TypeId::of::<TService>();
+
+        let services = self.ctx.services.read().await.get_all_collection_by_service_type::<TService>()
+            .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
+
+        let services_read_lock = services.read().await;
+
+        // { cycled_component_type_id , service_constructor }
+        let service_constructor = services_read_lock.get_by_type_id(&component_type_id);
+
+        let cycled_component_builder = self.ctx.cycled_component_builders.read().await
+            .get(&component_type_id)
+            .expect(&format!("Service exist but cycled component builder not found service_id:[{component_type_id:?}]"))
+            .clone();
+
+        let component_info = cycled_component_builder.get_input_type_info();
+
+        if let DependencyContextId::TypeId(type_info) = &self.id {
+            // Link created on dependency add, we need take link for dependency, not cycled dependency or service
+            check_link(self.ctx.clone(), component_info, type_info).await?;
+        }
+
+        let cycled_component = cycled_component_builder.build(self.ctx.clone(), self.scope.clone()).await?;
+        let service: Box<TService> = service_constructor.build(cycled_component)
+            .downcast::<TService>()
+            .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
+
+        return Ok(Box::into_inner(service));
+    }
+
+    pub fn resolve_by_type_id_sync<TService: Sync + Send + 'static>(&self, component_type_id: TypeId) -> BuildDependencyResult<TService> {
+        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async { self.resolve_by_type_id::<TService>(component_type_id).await })
     }
 
     pub async fn resolve_collection<TService: Sync + Send + 'static>(&self) -> BuildDependencyResult<Vec<TService>> {
