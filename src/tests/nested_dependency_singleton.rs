@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -13,7 +12,7 @@ struct SingletonDependency1 {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for SingletonDependency1 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })
@@ -26,7 +25,7 @@ struct SingletonDependency2 {
     pub d2: Arc<RwLock<SingletonDependency1>>,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for SingletonDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {

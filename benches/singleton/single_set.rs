@@ -1,7 +1,6 @@
 
 use tokio::sync::RwLock;
 use tokio::runtime::Runtime;
-use async_trait::async_trait;
 use anthill_di::{DependencyContext, types::BuildDependencyResult, Constructor, DependencyLifeCycle};
 
 use criterion::{criterion_group, Criterion};
@@ -11,7 +10,7 @@ struct SingletonDependency {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for SingletonDependency {
     async fn ctor(_: anthill_di::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

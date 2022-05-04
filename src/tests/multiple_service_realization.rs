@@ -1,5 +1,3 @@
-use async_trait::async_trait;
-
 use crate::{
     Constructor,
     types::BuildDependencyResult
@@ -20,21 +18,21 @@ struct TransientDependency3 {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency1 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test1".to_string() })
     }
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency2 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test2".to_string() })
     }
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency3 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test3".to_string() })

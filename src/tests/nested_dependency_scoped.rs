@@ -1,6 +1,5 @@
 use std::sync::Weak;
 
-use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -13,7 +12,7 @@ struct ScopedDependency1 {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for ScopedDependency1 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })
@@ -26,7 +25,7 @@ struct ScopedDependency2 {
     pub d2: Weak<RwLock<ScopedDependency1>>,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for ScopedDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {

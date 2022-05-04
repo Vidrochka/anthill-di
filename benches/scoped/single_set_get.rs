@@ -2,7 +2,6 @@
 use tokio::sync::RwLock;
 use std::sync::Weak;
 use tokio::runtime::Runtime;
-use async_trait::async_trait;
 use anthill_di::{DependencyContext, types::BuildDependencyResult, Constructor, DependencyLifeCycle};
 
 use criterion::{black_box, criterion_group, Criterion};
@@ -12,7 +11,7 @@ struct ScopedDependency {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for ScopedDependency {
     async fn ctor(_: anthill_di::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

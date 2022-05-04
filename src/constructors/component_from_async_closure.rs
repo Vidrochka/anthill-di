@@ -2,7 +2,6 @@ use std::{any::Any, future::Future};
 
 use crate::{types::BuildDependencyResult, DependencyContext, TypeConstructor};
 
-use async_trait::async_trait;
 use derive_new::new;
 
 #[derive(new)]
@@ -17,7 +16,7 @@ where
     closure: TClosure
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl<TComponent, TFuture, TClosure> TypeConstructor for ComponentFromAsyncClosure<TComponent, TFuture, TClosure>
 where
     TComponent: Sync + Send + 'static,

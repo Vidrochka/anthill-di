@@ -1,5 +1,3 @@
-use async_trait::async_trait;
-
 use crate::{
     Constructor,
     types::BuildDependencyResult
@@ -10,7 +8,7 @@ struct SingletonDependency {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for SingletonDependency {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

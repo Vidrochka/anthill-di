@@ -1,5 +1,3 @@
-use async_trait::async_trait;
-
 use crate::{
     Constructor,
     types::BuildDependencyResult,
@@ -8,10 +6,15 @@ use crate::{
 #[allow(dead_code)]
 struct TransientDependency {
     pub str: String,
+    pub dependency: TransientDependency2,
 }
 
-#[async_trait]
-impl Constructor for TransientDependency {
+struct TransientDependency2 {
+    pub str: String,
+}
+
+#[async_trait_with_sync::async_trait(Sync)]
+impl Constructor for TransientDependency2 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })
     }
@@ -23,7 +26,11 @@ async fn single_transient_closure() {
 
     let root_context = DependencyContext::new_root();
 
-    root_context.register_closure(|_| Ok(TransientDependency { str: "test".to_string() }), DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
+    root_context.register_closure(|ctx| Ok(TransientDependency {
+        str: "test".to_string(),
+        dependency: ctx.resolve_sync().unwrap(),
+    }), DependencyLifeCycle::Transient).await.unwrap();
 
     let dependency = root_context.resolve::<TransientDependency>().await.unwrap();
 
@@ -36,7 +43,11 @@ fn single_transient_closure_sync() {
 
     let root_context = DependencyContext::new_root();
 
-    root_context.register_closure_sync(|_| Ok(TransientDependency { str: "test".to_string() }), DependencyLifeCycle::Transient).unwrap();
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
+    root_context.register_closure_sync(|ctx| Ok(TransientDependency {
+        str: "test".to_string(),
+        dependency: ctx.resolve_sync()?
+    }), DependencyLifeCycle::Transient).unwrap();
 
     let dependency = root_context.resolve_sync::<TransientDependency>().unwrap();
 
@@ -49,8 +60,14 @@ async fn single_transient_async_closure() {
 
     let root_context = DependencyContext::new_root();
 
+    root_context.register_type::<TransientDependency2>(DependencyLifeCycle::Transient).await.unwrap();
     root_context.register_async_closure(
-        |_: crate::DependencyContext| { async { Ok(TransientDependency { str: "test".to_string() }) }},
+        move |ctx: crate::DependencyContext| { async move {
+            Ok(TransientDependency {
+                str: "test".to_string(),
+                dependency: ctx.resolve().await?,
+            }
+        ) }},
         DependencyLifeCycle::Transient
     ).await.unwrap();
 
@@ -65,8 +82,12 @@ fn single_transient_async_closure_sync() {
 
     let root_context = DependencyContext::new_root();
 
+    root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
     root_context.register_async_closure_sync(
-        |_: crate::DependencyContext| { async { Ok(TransientDependency { str: "test".to_string() }) }},
+        |ctx: crate::DependencyContext| { async move { Ok(TransientDependency {
+            str: "test".to_string(), 
+            dependency: ctx.resolve().await?
+        }) }},
         DependencyLifeCycle::Transient
     ).unwrap();
 

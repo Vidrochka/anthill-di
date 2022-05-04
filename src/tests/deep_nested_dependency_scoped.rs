@@ -1,6 +1,5 @@
 use std::sync::{Weak, Arc};
 
-use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -15,7 +14,7 @@ struct TransientDependency1 {
     pub t1: TransientDependency2,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency1 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
@@ -32,7 +31,7 @@ struct TransientDependency2 {
     pub scope: Arc<DependencyScope>,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency2 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         let mut ctx = ctx;
@@ -51,7 +50,7 @@ struct TransientDependency3 {
     pub s3: Weak<RwLock<ScopedDependency1>>,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for TransientDependency3 {
     async fn ctor(ctx: crate::DependencyContext) -> BuildDependencyResult<Self> {
         Ok(Self {
@@ -65,7 +64,7 @@ struct ScopedDependency1 {
     pub str: String,
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl Constructor for ScopedDependency1 {
     async fn ctor(_: crate::DependencyContext) ->  BuildDependencyResult<Self> {
         Ok(Self { str: "test".to_string() })

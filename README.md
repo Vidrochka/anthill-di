@@ -290,7 +290,7 @@ async fn _() {
 ## Basic example
 
 ```rust
-use async_trait::async_trait;
+
 
 use anthill_di::{
     Constructor,

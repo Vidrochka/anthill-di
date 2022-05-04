@@ -7,8 +7,6 @@ use std::{
     fmt::Debug
 };
 
-use async_trait::async_trait;
-
 use crate::{
     DependencyContext,
     types::BuildDependencyResult
@@ -36,7 +34,7 @@ impl Debug for DependencyType {
     }
 }
 
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 pub trait TypeConstructor where Self: Sync + Send {
     async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>>;
 }

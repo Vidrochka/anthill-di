@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 use std::any::Any;
 
-use async_trait::async_trait;
-
 use crate::DependencyContext;
 use crate::TypeConstructor;
 use crate::Constructor;
@@ -14,7 +12,7 @@ use derive_new::new;
 pub (crate) struct ComponentFromConstructor<TComponent: Constructor + Sync + Send> {
     component_phantom_data: PhantomData<TComponent>,
 }
-#[async_trait]
+#[async_trait_with_sync::async_trait(Sync)]
 impl<TComponent: Constructor + Sync + Send> TypeConstructor for ComponentFromConstructor<TComponent> {
     async fn ctor(&self, ctx: DependencyContext) -> BuildDependencyResult<Box<dyn Any + Sync + Send>> {
         let new_component = TComponent::ctor(ctx).await?;
