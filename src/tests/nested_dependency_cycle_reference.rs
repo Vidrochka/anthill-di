@@ -31,6 +31,7 @@ impl Constructor for TransientDependency2 {
     }
 }
 
+#[cfg(feature = "loop-check")]
 #[tokio::test]
 async fn nested_dependency_cycle_reference() {
     use crate::{DependencyContext, DependencyLifeCycle};
@@ -50,6 +51,7 @@ async fn nested_dependency_cycle_reference() {
     }));
 }
 
+#[cfg(feature = "loop-check")]
 #[test]
 fn nested_dependency_cycle_reference_sync() {
     use crate::{DependencyContext, DependencyLifeCycle};

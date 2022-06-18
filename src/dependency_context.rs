@@ -1,29 +1,25 @@
 use tokio::runtime::Builder;
-use crate::{Constructor, ComponentFromConstructor, SingletonComponentBuilder, ScopedComponentBuilder, TransientComponentBuilder, ICycledComponentBuilder, types::TypeInfo, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
-use std::{marker::Unsize, collections::{HashMap, VecDeque}, future::Future};
+use crate::{Constructor, ComponentFromConstructor, types::TypeInfo, constructors::{ComponentFromAsyncClosure, ComponentFromClosure, ComponentFromInstance}};
+use std::{marker::Unsize, future::Future};
 use std::{
-    any::{TypeId, type_name},
-    sync::{
-        Arc,
-        Weak
-    }
+    any::TypeId,
+    sync::Arc,
 };
+
+#[cfg(feature = "loop-check")]
+use crate::DependencyLink;
+
 use crate::{
     DependencyCoreContext,
     DependencyScope,
     DependencyBuilder,
-    Dependency,
     types::{
         BuildDependencyResult,
         AddDependencyResult,
-        AddDependencyError,
-        BuildDependencyError,
         MapComponentResult,
-        MapComponentError,
     },
     DependencyLifeCycle,
     DependencyType,
-    DependencyLink,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,7 +28,7 @@ pub (crate) enum DependencyContextId {
     Root,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DependencyContext {
     id: DependencyContextId,
     ctx: Arc<DependencyCoreContext>,

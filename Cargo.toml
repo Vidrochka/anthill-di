@@ -18,5 +18,9 @@ derive-new = "0.5.9"
 criterion = { version = "0.3.4", features = ["async_tokio"] }
 
 [[bench]]
-name = "single_transient"
+name = "anthill_bench"
 harness = false
+
+[features]
+default = ["loop-check"]
+loop-check = []

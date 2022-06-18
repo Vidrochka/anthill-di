@@ -18,7 +18,9 @@ pub use life_cycle::*;
 mod dependency;
 pub (crate) use dependency::*;
 
+#[cfg(feature = "loop-check")]
 mod dependency_link;
+#[cfg(feature = "loop-check")]
 pub (crate) use dependency_link::*;
 
 mod dependency_scope;

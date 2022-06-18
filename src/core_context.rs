@@ -8,32 +8,50 @@ use std::{
 use tokio::sync::RwLock;
 use derive_new::new;
 
+#[cfg(feature = "loop-check")]
+use crate::DependencyLink;
+
 use crate::{
     Dependency,
-    DependencyLink,
     service::ServicesMappingsCollection,
     ICycledComponentBuilder,
     GlobalScope, DependencyType, DependencyLifeCycle, types::{AddDependencyResult, TypeInfo, AddDependencyError, BuildDependencyResult, BuildDependencyError, MapComponentError, MapComponentResult}, DependencyBuilder, cycled_component_builder::{TransientComponentBuilder, SingletonComponentBuilder, ScopedComponentBuilder}, DependencyContextId, DependencyScope
 };
 
-//#[derive(Debug)]
-#[derive(Default, new)]
+#[derive(Default)]
 pub struct DependencyCoreContext where Self: Sync + Send {
-    #[new(default)] pub (crate) components: RwLock<HashMap<TypeId, Arc<Dependency>>>,
-    #[new(default)] pub (crate) cycled_component_builders: RwLock<HashMap<TypeId, Arc<Box<dyn ICycledComponentBuilder>>>>,
-    #[new(default)] pub (crate) services: RwLock<ServicesMappingsCollection>,
-    #[new(default)] pub (crate) links: RwLock<HashMap<TypeId, DependencyLink>>,
-    #[new(default)] pub (crate) global_scope: Arc<RwLock<GlobalScope>>,
+    pub (crate) components: RwLock<HashMap<TypeId, Arc<Dependency>>>,
+    pub (crate) cycled_component_builders: RwLock<HashMap<TypeId, Arc<Box<dyn ICycledComponentBuilder>>>>,
+    pub (crate) services: RwLock<ServicesMappingsCollection>,
+    pub (crate) global_scope: Arc<RwLock<GlobalScope>>,
+    #[cfg(feature = "loop-check")]
+    pub (crate) links: RwLock<HashMap<TypeId, DependencyLink>>,
+}
+
+impl DependencyCoreContext {
+    pub fn new() -> Self { 
+        Self {
+            components: Default::default(),
+            cycled_component_builders: Default::default(),
+            services: Default::default(),
+            global_scope: Default::default(),
+            #[cfg(feature = "loop-check")]
+            links: Default::default(),
+        }
+    }
 }
 
 impl Debug for DependencyCoreContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DependencyCoreContext")
-            .field("cycled_component_builders", &self.cycled_component_builders.try_read().unwrap())
+        let mut debug_struct = f.debug_struct("DependencyCoreContext");
+        debug_struct.field("cycled_component_builders", &self.cycled_component_builders.try_read().unwrap())
             .field("components", &self.components.try_read().unwrap())
-            .field("services", &self.services.try_read().unwrap())
-            .field("links", &self.links.try_read().unwrap())
-            .field("global_scope", &self.global_scope.try_read().unwrap())
+            .field("services", &self.services.try_read().unwrap());
+
+        #[cfg(feature = "loop-check")]
+        debug_struct.field("links", &self.links.try_read().unwrap());
+
+        debug_struct.field("global_scope", &self.global_scope.try_read().unwrap())
             .finish()
     }
 }
@@ -56,7 +74,9 @@ impl DependencyCoreContext {
         //---------------------------
 
         // Создаем ячейку свзяей без связей //TODO: в линках брать реальный ид
+        #[cfg(feature = "loop-check")]
         let mut links_guard = self.links.write().await;
+        #[cfg(feature = "loop-check")]
         links_guard.insert(component_id.clone(), DependencyLink::new());
         //---------------------------
 
@@ -101,8 +121,10 @@ impl DependencyCoreContext {
             .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
             .clone();
     
+        #[cfg(feature = "loop-check")]
         let component_info = cycled_component_builder.get_input_type_info();
     
+        #[cfg(feature = "loop-check")]
         if let DependencyContextId::TypeId(type_info) = &id {
             // Link created on dependency add, we need take link for dependency, not cycled dependency or service
             check_link(self.clone(), component_info, type_info).await?;
@@ -132,8 +154,10 @@ impl DependencyCoreContext {
             .expect(&format!("Service exist but cycled component builder not found service_id:[{component_type_id:?}]"))
             .clone();
 
+        #[cfg(feature = "loop-check")]
         let component_info = cycled_component_builder.get_input_type_info();
 
+        #[cfg(feature = "loop-check")]
         if let DependencyContextId::TypeId(type_info) = &id {
             // Link created on dependency add, we need take link for dependency, not cycled dependency or service
             check_link(self.clone(), component_info, type_info).await?;
@@ -165,8 +189,10 @@ impl DependencyCoreContext {
             .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
             .clone();
 
+            #[cfg(feature = "loop-check")]
             let component_info = cycled_component_builder.get_input_type_info();
 
+            #[cfg(feature = "loop-check")]
             if let DependencyContextId::TypeId(type_info) = &id {
                 // Link created on dependency add, we need take link for dependency, not cycled dependency or service
                 check_link(self.clone(), component_info, type_info).await?;
@@ -208,6 +234,7 @@ impl DependencyCoreContext {
     }
 }
 
+#[cfg(feature = "loop-check")]
 async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, parent_type_info: &TypeInfo) -> BuildDependencyResult<()> {
     let links_read_guard = ctx.links.read().await;
 
@@ -261,6 +288,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
     Ok(())
 }
 
+#[cfg(feature = "loop-check")]
 fn validate_dependency<'a>(links_map: &HashMap<TypeId, DependencyLink>, parent_links: &DependencyLink, child_id: &TypeId) -> bool {
     let mut parents_collection = VecDeque::new();
     parents_collection.push_back(&parent_links.parents);
