@@ -26,3 +26,10 @@ pub type MapComponentResult<T> = Result<T, MapComponentError>;
 pub enum MapComponentError {
     ComponentNotFound { type_info: TypeInfo },
 }
+
+pub type DeleteComponentResult<T> = Result<T, DeleteComponentError>;
+
+#[derive(Debug, PartialEq)]
+pub enum DeleteComponentError {
+    ComponentNotFound { type_info: TypeInfo },
+}

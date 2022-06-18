@@ -4,29 +4,60 @@ use derive_new::new;
 
 use crate::types::TypeInfo;
 
-pub (crate) trait IServiceConstructor where Self: Sync + Send + 'static {
+pub (crate) trait IServiceConstructor where Self: Debug + Sync + Send + 'static {
     fn build(&self, component: Box<dyn Any + Sync + Send>) -> Box<dyn Any + Sync + Send>;
-    fn get_component_info(&self) -> TypeInfo;
-    fn get_service_info(&self) -> TypeInfo;
-    fn get_constructor_type(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<Self>(), type_name::<Self>().to_string())
-    }
 }
 
-impl Debug for Box<dyn IServiceConstructor> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IServiceConstructor")
-            .field("[META]:component_info", &self.get_component_info())
-            .field("[META]:service_info", &self.get_service_info())
-            .field("[META]:constructor_type", &self.get_constructor_type())
-            .finish()
-    }
-}
+// impl Debug for Box<dyn IServiceConstructor> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("IServiceConstructor")
+//             .field("[META]:component_info", &self.get_component_info())
+//             .field("[META]:service_info", &self.get_service_info())
+//             .field("[META]:constructor_type", &self.get_constructor_type())
+//             .finish()
+//     }
+// }
 
-#[derive(Debug, Default, new)]
 pub (crate) struct BoxedTraitService<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> where TComponent: Unsize<TService> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
-    #[new(default)] service_phantom_data: PhantomData<TService>,
+    component_phantom_data: PhantomData<TComponent>,
+    service_phantom_data: PhantomData<TService>,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_component_type_info: TypeInfo,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_service_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> Debug for BoxedTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("BoxedTraitService");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data)
+            .field("service_phantom_data", &self.service_phantom_data);
+
+        #[cfg(feature = "debug-type-info")]
+        debug_struct.field("debug_component_type_info", &self.debug_component_type_info)
+            .field("debug_service_type_info", &self.debug_service_type_info);
+
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> BoxedTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            service_phantom_data: Default::default(),
+            #[cfg(feature = "debug-type-info")]
+            debug_component_type_info: TypeInfo::from_type::<TComponent>(),
+            #[cfg(feature = "debug-type-info")]
+            debug_service_type_info: TypeInfo::from_type::<Box<TService>>(),
+        }
+    }
 }
 
 impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'static> IServiceConstructor for BoxedTraitService<TComponent, TService> where TComponent: Unsize<TService>, Self: Sized + Sync + Send {
@@ -37,15 +68,48 @@ impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'stati
         let service = component as Box<TService>;
         return Box::new(service) as Box<dyn Any + Sync + Send>;
     }
-
-    fn get_component_info(&self) -> TypeInfo { TypeInfo::from_type::<TComponent>() }
-    fn get_service_info(&self) -> TypeInfo { TypeInfo::from_type::<Box<TService>>() }
 }
 
-#[derive(Debug, Default, new)]
 pub (crate) struct ArcTraitService<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> where TComponent: Unsize<TService> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
-    #[new(default)] service_phantom_data: PhantomData<TService>,
+    component_phantom_data: PhantomData<TComponent>,
+    service_phantom_data: PhantomData<TService>,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_component_type_info: TypeInfo,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_service_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> Debug for ArcTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("ArcTraitService");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data)
+            .field("service_phantom_data", &self.service_phantom_data);
+
+        #[cfg(feature = "debug-type-info")]
+        debug_struct.field("debug_component_type_info", &self.debug_component_type_info)
+            .field("debug_service_type_info", &self.debug_service_type_info);
+
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> ArcTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            service_phantom_data: Default::default(),
+            #[cfg(feature = "debug-type-info")]
+            debug_component_type_info: TypeInfo::from_type::<Arc<TComponent>>(),
+            #[cfg(feature = "debug-type-info")]
+            debug_service_type_info: TypeInfo::from_type::<Arc<TService>>(),
+        }
+    }
 }
 
 impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'static> IServiceConstructor for ArcTraitService<TComponent, TService> where TComponent: Unsize<TService>, Self: Sized + Sync + Send {
@@ -56,15 +120,48 @@ impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'stati
         let service = Box::into_inner(component) as Arc<TService>;
         return Box::new(service) as Box<dyn Any + Sync + Send>;
     }
-
-    fn get_component_info(&self) -> TypeInfo { TypeInfo::from_type::<Arc<TComponent>>() }
-    fn get_service_info(&self) -> TypeInfo { TypeInfo::from_type::<Arc<TService>>() }
 }
 
-#[derive(Debug, Default, new)]
 pub (crate) struct WeakTraitService<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> where TComponent: Unsize<TService> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
-    #[new(default)] service_phantom_data: PhantomData<TService>,
+    component_phantom_data: PhantomData<TComponent>,
+    service_phantom_data: PhantomData<TService>,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_component_type_info: TypeInfo,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_service_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> Debug for WeakTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("WeakTraitService");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data)
+            .field("service_phantom_data", &self.service_phantom_data);
+
+        #[cfg(feature = "debug-type-info")]
+        debug_struct.field("debug_component_type_info", &self.debug_component_type_info)
+            .field("debug_service_type_info", &self.debug_service_type_info);
+
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> WeakTraitService<TComponent, TService>
+where TComponent: Unsize<TService>
+{
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            service_phantom_data: Default::default(),
+            #[cfg(feature = "debug-type-info")]
+            debug_component_type_info: TypeInfo::from_type::<Weak<TComponent>>(),
+            #[cfg(feature = "debug-type-info")]
+            debug_service_type_info: TypeInfo::from_type::<Weak<TService>>(),
+        }
+    }
 }
 
 impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'static> IServiceConstructor for WeakTraitService<TComponent, TService> where TComponent: Unsize<TService>, Self: Sized + Sync + Send {
@@ -75,21 +172,39 @@ impl<TComponent: Sync + Send + 'static, TService:  ?Sized + Sync + Send + 'stati
         let service = Box::into_inner(component) as Weak<TService>;
         return Box::new(service) as Box<dyn Any + Sync + Send>;
     }
-
-    fn get_component_info(&self) -> TypeInfo { TypeInfo::from_type::<Weak<TComponent>>() }
-    fn get_service_info(&self) -> TypeInfo { TypeInfo::from_type::<Weak<TService>>() }
 }
 
-#[derive(Debug, Default, new)]
-pub (crate) struct NoLogicService<TComponent: 'static> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
+pub (crate) struct SelfMappingService<TComponent: 'static> {
+    component_phantom_data: PhantomData<TComponent>,
+
+    #[cfg(feature = "debug-type-info")]
+    debug_type_info: TypeInfo,
 }
 
-impl<TComponent: Sync + Send + 'static> IServiceConstructor for NoLogicService<TComponent> {
+impl<TComponent: 'static> Debug for SelfMappingService<TComponent> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("SelfMappingService");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data);
+
+        #[cfg(feature = "debug-type-info")]
+        debug_struct.field("debug_type_info", &self.debug_type_info);
+
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: 'static> SelfMappingService<TComponent> {
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            #[cfg(feature = "debug-type-info")]
+            debug_type_info: TypeInfo::from_type::<TComponent>()
+        }
+    }
+}
+
+impl<TComponent: Sync + Send + 'static> IServiceConstructor for SelfMappingService<TComponent> {
     fn build(&self, component: Box<dyn Any + Sync + Send>) -> Box<dyn Any + Sync + Send> {
         return component;
     }
-
-    fn get_component_info(&self) -> TypeInfo { TypeInfo::from_type::<TComponent>() }
-    fn get_service_info(&self) -> TypeInfo { TypeInfo::from_type::<TComponent>() }
 }

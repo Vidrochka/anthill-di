@@ -2,7 +2,7 @@
 name = "anthill-di"
 version = "1.2.3"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
-edition = "2018"
+edition = "2021"
 description = "Rust di containers system"
 license = "MIT"
 homepage = "https://github.com/Vidrochka/anthill-di"
@@ -24,3 +24,4 @@ harness = false
 [features]
 default = ["loop-check"]
 loop-check = []
+debug-type-info = []

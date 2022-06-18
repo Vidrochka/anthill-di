@@ -143,7 +143,7 @@ impl DependencyContext {
         let ctx = self.ctx.clone();
         let id = self.id.clone();
         let scope = self.scope.clone();
-
+        
         std::thread::spawn(move || {
             let rt = Builder::new_current_thread().enable_all().build().unwrap();
             rt.block_on(async { ctx.resolve::<TService>(id, scope).await })

@@ -32,16 +32,13 @@ impl<TComponent: Sync + Send + 'static> DependencyBuilder<TComponent> {
 
         let component = component.unwrap();
 
-        let mut services_write_lock = self.ctx.services.write().await;
-
         match component.life_cycle_type {
-            DependencyLifeCycle::Transient => services_write_lock.add_transient::<TComponent, TService>().await,
-            DependencyLifeCycle::Singleton => services_write_lock.add_singleton::<TComponent, TService>().await,
-            DependencyLifeCycle::Scoped => services_write_lock.add_scoped::<TComponent, TService>().await
+            DependencyLifeCycle::Transient => self.ctx.component_service_collection.write().await.add_mapping_as_transient::<TComponent, TService>().await,
+            DependencyLifeCycle::Singleton => self.ctx.component_service_collection.write().await.add_mapping_as_singleton::<TComponent, TService>().await,
+            DependencyLifeCycle::Scoped =>  self.ctx.component_service_collection.write().await.add_mapping_as_scoped::<TComponent, TService>().await
         };
 
         drop(components_read_guard);
-        drop(services_write_lock);
 
         Ok(self)
     }

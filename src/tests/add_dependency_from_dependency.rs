@@ -51,7 +51,7 @@ impl Constructor for TransientDependency3 {
 }
 
 #[tokio::test]
-async fn single_transient() {
+async fn add_dependency_from_dependency() {
     use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
@@ -64,13 +64,13 @@ async fn single_transient() {
 }
 
 #[test]
-fn single_transient_sync() {
+fn add_dependency_from_dependency_sync() {
     use crate::{DependencyContext, DependencyLifeCycle};
 
     let root_context = DependencyContext::new_root();
     root_context.register_type_sync::<TransientDependency1>(DependencyLifeCycle::Transient).unwrap();
     root_context.register_type_sync::<TransientDependency2>(DependencyLifeCycle::Transient).unwrap();
-
+    
     let dependency = root_context.resolve_sync::<TransientDependency1>().unwrap();
 
     assert_eq!(dependency.d1.d2.str, "test".to_string());

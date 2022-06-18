@@ -13,16 +13,21 @@ use crate::DependencyLink;
 
 use crate::{
     Dependency,
-    service::ServicesMappingsCollection,
+    service::{
+        IServiceConstructor,
+        ComponentServiceCollection,
+    },
     ICycledComponentBuilder,
-    GlobalScope, DependencyType, DependencyLifeCycle, types::{AddDependencyResult, TypeInfo, AddDependencyError, BuildDependencyResult, BuildDependencyError, MapComponentError, MapComponentResult}, DependencyBuilder, cycled_component_builder::{TransientComponentBuilder, SingletonComponentBuilder, ScopedComponentBuilder}, DependencyContextId, DependencyScope
+    GlobalScope,
+    DependencyType, DependencyLifeCycle, types::{AddDependencyResult, TypeInfo, AddDependencyError, BuildDependencyResult, BuildDependencyError, MapComponentError, MapComponentResult, DeleteComponentResult}, DependencyBuilder, cycled_component_builder::{TransientComponentBuilder, SingletonComponentBuilder, ScopedComponentBuilder}, DependencyContextId, DependencyScope
 };
 
 #[derive(Default)]
 pub struct DependencyCoreContext where Self: Sync + Send {
     pub (crate) components: RwLock<HashMap<TypeId, Arc<Dependency>>>,
     pub (crate) cycled_component_builders: RwLock<HashMap<TypeId, Arc<Box<dyn ICycledComponentBuilder>>>>,
-    pub (crate) services: RwLock<ServicesMappingsCollection>,
+    pub (crate) component_service_collection: RwLock<ComponentServiceCollection>,
+
     pub (crate) global_scope: Arc<RwLock<GlobalScope>>,
     #[cfg(feature = "loop-check")]
     pub (crate) links: RwLock<HashMap<TypeId, DependencyLink>>,
@@ -33,7 +38,8 @@ impl DependencyCoreContext {
         Self {
             components: Default::default(),
             cycled_component_builders: Default::default(),
-            services: Default::default(),
+            //services: Default::default(),
+            component_service_collection: Default::default(),
             global_scope: Default::default(),
             #[cfg(feature = "loop-check")]
             links: Default::default(),
@@ -46,7 +52,7 @@ impl Debug for DependencyCoreContext {
         let mut debug_struct = f.debug_struct("DependencyCoreContext");
         debug_struct.field("cycled_component_builders", &self.cycled_component_builders.try_read().unwrap())
             .field("components", &self.components.try_read().unwrap())
-            .field("services", &self.services.try_read().unwrap());
+            .field("component_service_collection", &self.component_service_collection.try_read().unwrap());
 
         #[cfg(feature = "loop-check")]
         debug_struct.field("links", &self.links.try_read().unwrap());
@@ -58,7 +64,6 @@ impl Debug for DependencyCoreContext {
 
 impl DependencyCoreContext {
     pub (crate) async fn register<TComponent: Sync + Send + 'static>(self: &Arc<Self>, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
-    //pub (crate) fn register<TComponent: Sync + Send + 'static>(self: &Arc<Self>, component_type: DependencyType, life_cycle: DependencyLifeCycle) -> AddDependencyResult<DependencyBuilder<TComponent>> {
         let component = Dependency::new(life_cycle.clone(), component_type);
 
         let component_id = component.di_type.id.clone();
@@ -82,9 +87,9 @@ impl DependencyCoreContext {
 
         // Пустой маппинг сомпонента
         match life_cycle {
-            DependencyLifeCycle::Transient => self.services.write().await.add_no_mappings::<TComponent>().await,
-            DependencyLifeCycle::Singleton => self.services.write().await.add_no_mappings::<Arc<TComponent>>().await,
-            DependencyLifeCycle::Scoped => self.services.write().await.add_no_mappings::<Weak<TComponent>>().await,
+            DependencyLifeCycle::Transient => self.component_service_collection.write().await.add_mapping_as_self::<TComponent>().await,
+            DependencyLifeCycle::Singleton => self.component_service_collection.write().await.add_mapping_as_self::<Arc<TComponent>>().await,
+            DependencyLifeCycle::Scoped => self.component_service_collection.write().await.add_mapping_as_self::<Weak<TComponent>>().await,
         }
         //---------------------------
 
@@ -108,17 +113,14 @@ impl DependencyCoreContext {
     pub (crate) async fn resolve<'a, TService: Sync + Send + 'static>(self: &Arc<Self>, id: DependencyContextId, scope: Arc<DependencyScope>) -> BuildDependencyResult<TService>{//std::pin::Pin<Box<dyn std::future::Future<Output = BuildDependencyResult<TService>> + Send + Sync + 'a>> {
         let service_id = TypeId::of::<TService>();
 
-        let services = self.services.read().await.get_all_collection_by_service_type::<TService>()
+        let component_service_collection_read_guard = self.component_service_collection.read().await;
+        let component_service_pair = component_service_collection_read_guard.get_nth_by_service_type::<TService>(0)
             .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
-    
-        let services_read_lock = services.read().await;
-    
-        // { cycled_component_type_id , service_constructor }
-        let service_info = services_read_lock.get_nth_service_info(0);
+        drop(component_service_collection_read_guard);
     
         let cycled_component_builder = self.cycled_component_builders.read().await
-            .get(&service_info.0)
-            .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
+            .get(&component_service_pair.component_id)
+            .expect(&format!("Component service pair exist but cycled component builder not found:[{component_service_pair:?}]"))
             .clone();
     
         #[cfg(feature = "loop-check")]
@@ -131,27 +133,24 @@ impl DependencyCoreContext {
         }
     
         let cycled_component = cycled_component_builder.build(self.clone(), scope).await?;
-        let service: Box<TService> = service_info.1.build(cycled_component)
+        let service: Box<TService> = component_service_pair.converter.build(cycled_component)
             .downcast::<TService>()
             .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
-    
+
         Ok(Box::into_inner(service))
     }
 
     pub (crate) async fn resolve_by_type_id<TService: Sync + Send + 'static>(self: &Arc<Self>, component_type_id: TypeId, id: DependencyContextId, scope: Arc<DependencyScope>) -> BuildDependencyResult<TService> {
         let service_id = TypeId::of::<TService>();
 
-        let services = self.services.read().await.get_all_collection_by_service_type::<TService>()
+        let component_service_collection_read_guard = self.component_service_collection.read().await;
+        let component_service_pair = component_service_collection_read_guard.get_all_by_service_type_with_component_id::<TService>(component_type_id)
             .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
-
-        let services_read_lock = services.read().await;
-
-        // { cycled_component_type_id , service_constructor }
-        let service_constructor = services_read_lock.get_by_type_id(&component_type_id);
+        drop(component_service_collection_read_guard);
 
         let cycled_component_builder = self.cycled_component_builders.read().await
-            .get(&component_type_id)
-            .expect(&format!("Service exist but cycled component builder not found service_id:[{component_type_id:?}]"))
+            .get(&component_service_pair.component_id)
+            .expect(&format!("Component service pair exist but cycled component builder not found:[{component_service_pair:?}]"))
             .clone();
 
         #[cfg(feature = "loop-check")]
@@ -164,7 +163,7 @@ impl DependencyCoreContext {
         }
 
         let cycled_component = cycled_component_builder.build(self.clone(), scope).await?;
-        let service: Box<TService> = service_constructor.build(cycled_component)
+        let service: Box<TService> = component_service_pair.converter.build(cycled_component)
             .downcast::<TService>()
             .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
 
@@ -174,19 +173,16 @@ impl DependencyCoreContext {
     pub (crate) async fn resolve_collection<TService: Sync + Send + 'static>(self: &Arc<Self>, id: DependencyContextId, scope: Arc<DependencyScope>) -> BuildDependencyResult<Vec<TService>> {
         let service_id = TypeId::of::<TService>();
 
-        let services = self.services.read().await.get_all_collection_by_service_type::<TService>()
+        let component_service_collection_read_guard = self.component_service_collection.read().await;
+        let component_service_pairs = component_service_collection_read_guard.get_all_by_service_type::<TService>()
             .ok_or(BuildDependencyError::NotFound{ type_info: TypeInfo::from_type::<TService>() })?;
-
-        let services_read_lock = services.read().await;
-
-        // { cycled_component_type_id , service_constructor }
-        let services_info = services_read_lock.get_all_services_info();
+        drop(component_service_collection_read_guard);
 
         let mut result = Vec::new();
-        for service_info in services_info.iter() {
+        for component_service_pair in component_service_pairs.iter() {
             let cycled_component_builder = self.cycled_component_builders.read().await
-            .get(&service_info.0)
-            .expect(&format!("Service exist but cycled component builder not found service_id:[{service_id:?}]", service_id = service_info.0))
+            .get(&component_service_pair.component_id)
+            .expect(&format!("Component service pair exist but cycled component builder not found:[{component_service_pair:?}]"))
             .clone();
 
             #[cfg(feature = "loop-check")]
@@ -199,7 +195,7 @@ impl DependencyCoreContext {
             }
 
             let cycled_component = cycled_component_builder.build(self.clone(), scope.clone()).await?;
-            let service: Box<TService> = service_info.1.build(cycled_component)
+            let service: Box<TService> = component_service_pair.converter.build(cycled_component)
                 .downcast::<TService>()
                 .expect(&format!("Invalid service cast expected service_id:[{service_id:?}] service_name:[{service_name}]", service_name = type_name::<TService>().to_string()));
 
@@ -222,20 +218,22 @@ impl DependencyCoreContext {
 
         let component = component.unwrap();
 
-        let mut services_write_lock = self.services.write().await;
-
         match component.life_cycle_type {
-            DependencyLifeCycle::Transient => services_write_lock.add_transient::<TComponent, TService>().await,
-            DependencyLifeCycle::Singleton => services_write_lock.add_singleton::<TComponent, TService>().await,
-            DependencyLifeCycle::Scoped => services_write_lock.add_scoped::<TComponent, TService>().await
+            DependencyLifeCycle::Transient => self.component_service_collection.write().await.add_mapping_as_transient::<TComponent, TService>().await,
+            DependencyLifeCycle::Singleton => self.component_service_collection.write().await.add_mapping_as_singleton::<TComponent, TService>().await,
+            DependencyLifeCycle::Scoped => self.component_service_collection.write().await.add_mapping_as_scoped::<TComponent, TService>().await
         };
 
         Ok(self.clone())
     }
+
+    // pub async fn delete<TComponent>() -> DeleteComponentResult<()> {
+
+    // }
 }
 
 #[cfg(feature = "loop-check")]
-async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, parent_type_info: &TypeInfo) -> BuildDependencyResult<()> {
+async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: &TypeInfo, parent_type_info: &TypeInfo) -> BuildDependencyResult<()> {
     let links_read_guard = ctx.links.read().await;
 
     let parent_links = links_read_guard.get(&parent_type_info.type_id)
@@ -249,7 +247,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
     // заранее (до write лока) валидируем зависимости, для возможности без write лока распознать ошибку
     if !validate_dependency(&links_read_guard, parent_links, &child_type_info.type_id) {
         return Err(BuildDependencyError::CyclicReference {
-            child_type_info: child_type_info,
+            child_type_info: child_type_info.clone(),
             parent_type_info: parent_type_info.clone()
         })
     }
@@ -266,7 +264,7 @@ async fn check_link(ctx: Arc<DependencyCoreContext>, child_type_info: TypeInfo, 
     // Получается оверхэд, т.к. 2 проверки, но этот оверхэд только для первого запроса, после валидация не будет происходить, т.к. связь будет сохранена
     if !validate_dependency(&links_write_guard, parent_links, &child_type_info.type_id) {
         return Err(BuildDependencyError::CyclicReference {
-            child_type_info: child_type_info,
+            child_type_info: child_type_info.clone(),
             parent_type_info: parent_type_info.clone()
         })
     }

@@ -16,26 +16,41 @@ use crate::{
 };
 
 #[async_trait_with_sync::async_trait(Sync)]
-pub (crate) trait ICycledComponentBuilder where Self: Sync + Send + 'static {
+pub (crate) trait ICycledComponentBuilder where Self: Debug + Sync + Send + 'static {
     async fn build(&self, ctx: Arc<DependencyCoreContext>, scope: Arc<DependencyScope>) -> BuildDependencyResult<Box<dyn Any + Sync + Send>>;
-    fn get_input_type_info(&self) -> TypeInfo;
-    fn get_output_type_info(&self) -> TypeInfo;
-}
-
-impl Debug for dyn ICycledComponentBuilder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CycledComponentBuilder")
-            .field("[META]:input_type", &self.get_input_type_info())
-            .field("[META]:output_ype", &self.get_output_type_info())
-            .finish()
-    }
+    fn get_input_type_info(&self) -> &TypeInfo;
+    fn get_output_type_info(&self) -> &TypeInfo;
 }
 
 // ----------- Maby move to self file -----------
 
-#[derive(Default, new)]
 pub (crate) struct SingletonComponentBuilder<TComponent: Sync + Send + 'static> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
+    component_phantom_data: PhantomData<TComponent>,
+
+    input_type_info: TypeInfo,
+    output_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static> Debug for SingletonComponentBuilder<TComponent> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("SingletonComponentBuilder");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data);
+        
+        debug_struct.field("input_type_info", &self.input_type_info)
+            .field("output_type_info", &self.output_type_info);
+        
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static> SingletonComponentBuilder<TComponent> {
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            input_type_info: TypeInfo::from_type::<TComponent>(),
+            output_type_info: TypeInfo::from_type::<Arc<TComponent>>(),
+        }
+    }
 }
 
 #[async_trait_with_sync::async_trait(Sync)]
@@ -98,20 +113,39 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for SingletonCom
         return Ok(Box::new(new_component_instance_ref) as Box<dyn Any + Sync + Send>);
     }
 
-    fn get_input_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string())
-    }
-
-    fn get_output_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<Arc<TComponent>>(), type_name::<Arc<TComponent>>().to_string())
-    }
+    fn get_input_type_info(&self) -> &TypeInfo { &self.input_type_info }
+    fn get_output_type_info(&self) -> &TypeInfo { &self.output_type_info }
 }
 
 // ----------- Maby move to self file -----------
 
-#[derive(Default, new)]
 pub (crate) struct ScopedComponentBuilder<TComponent: Sync + Send + 'static> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
+    component_phantom_data: PhantomData<TComponent>,
+
+    input_type_info: TypeInfo,
+    output_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static> Debug for ScopedComponentBuilder<TComponent> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("ScopedComponentBuilder");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data);
+
+        debug_struct.field("debug_input_type_info", &self.input_type_info)
+            .field("debug_output_type_info", &self.output_type_info);
+
+        debug_struct .finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static> ScopedComponentBuilder<TComponent> {
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            input_type_info: TypeInfo::from_type::<TComponent>(),
+            output_type_info: TypeInfo::from_type::<Weak<TComponent>>(),
+        }
+    }
 }
 
 #[async_trait_with_sync::async_trait(Sync)]
@@ -175,20 +209,39 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for ScopedCompon
         Ok(Box::new(Arc::downgrade(&new_component_instance_ref)) as Box<dyn Any + Sync + Send>)
     }
 
-    fn get_input_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string())
-    }
-
-    fn get_output_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<Weak<TComponent>>(), type_name::<Weak<TComponent>>().to_string())
-    }
+    fn get_input_type_info(&self) -> &TypeInfo { &self.input_type_info }
+    fn get_output_type_info(&self) -> &TypeInfo { &self.output_type_info }
 }
 
 // ----------- Maby move to self file -----------
 
-#[derive(Default, new)]
 pub (crate) struct TransientComponentBuilder<TComponent: Sync + Send + 'static> {
-    #[new(default)] component_phantom_data: PhantomData<TComponent>,
+    component_phantom_data: PhantomData<TComponent>,
+
+    input_type_info: TypeInfo,
+    output_type_info: TypeInfo,
+}
+
+impl<TComponent: Sync + Send + 'static> Debug for TransientComponentBuilder<TComponent> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("TransientComponentBuilder");
+        debug_struct.field("component_phantom_data", &self.component_phantom_data);
+
+        debug_struct.field("input_type_info", &self.input_type_info)
+            .field("output_type_info", &self.output_type_info);
+
+        debug_struct.finish()
+    }
+}
+
+impl<TComponent: Sync + Send + 'static> TransientComponentBuilder<TComponent> {
+    pub (crate) fn new() -> Self {
+        Self {
+            component_phantom_data: Default::default(),
+            input_type_info: TypeInfo::from_type::<TComponent>(),
+            output_type_info: TypeInfo::from_type::<TComponent>(),
+        }
+    }
 }
 
 #[async_trait_with_sync::async_trait(Sync)]
@@ -216,11 +269,6 @@ impl<TComponent: Sync + Send + 'static> ICycledComponentBuilder for TransientCom
         Ok(new_component_instance as Box<dyn Any + Sync + Send>)
     }
 
-    fn get_input_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string())
-    }
-
-    fn get_output_type_info(&self) -> TypeInfo {
-        TypeInfo::new(TypeId::of::<TComponent>(), type_name::<TComponent>().to_string())
-    }
+    fn get_input_type_info(&self) -> &TypeInfo { &self.input_type_info }
+    fn get_output_type_info(&self) -> &TypeInfo { &self.output_type_info }
 }
