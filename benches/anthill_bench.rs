@@ -1,13 +1,15 @@
 use criterion::criterion_main;
 mod transient;
 mod singleton;
-mod scoped;
+mod context_dependent;
 
 criterion_main! {
-    transient::single_set::benches,
-    transient::single_set_get::benches,
-    singleton::single_set::benches,
-    singleton::single_set_get::benches,
-    scoped::single_set::benches,
-    scoped::single_set_get::benches,
+    transient::set::benches,
+    transient::get::benches,
+    transient::delete::benches,
+    singleton::set::benches,
+    singleton::get::benches,
+    singleton::delete::benches,
+    context_dependent::set::benches,
+    context_dependent::get::benches,
 }

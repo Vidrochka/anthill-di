@@ -2,6 +2,7 @@
 #![feature(downcast_unchecked)]
 #![feature(box_into_inner)]
 #![feature(coerce_unsized)]
+#![feature(trait_alias)]
 
 mod core_context;
 pub (crate) use core_context::*;
@@ -9,42 +10,36 @@ pub (crate) use core_context::*;
 mod dependency_context;
 pub use dependency_context::*;
 
-mod dependency_type;
-pub use dependency_type::*;
-
 mod life_cycle;
 pub use life_cycle::*;
 
-mod dependency;
-pub (crate) use dependency::*;
+mod component;
+pub (crate) use component::*;
 
 #[cfg(feature = "loop-check")]
 mod dependency_link;
 #[cfg(feature = "loop-check")]
 pub (crate) use dependency_link::*;
 
-mod dependency_scope;
-pub use dependency_scope::*;
+mod local_context;
+pub use local_context::*;
 
-mod dependency_builder;
-pub use dependency_builder::*;
+mod service_mapping_builder;
+pub use service_mapping_builder::*;
 
-mod dependency_constructor;
-pub use dependency_constructor::*;
+mod constructor;
+pub use constructor::*;
 
-pub mod service;
 
-mod cycled_component_builder;
-pub (crate) use cycled_component_builder::*;
-
-mod global_scope;
-pub (crate) use global_scope::*;
+mod global_context;
+pub (crate) use global_context::*;
 
 mod constructors;
 pub (crate) use constructors::*;
 
 pub mod types;
-
+pub mod service;
+pub mod cycled_components;
 
 #[cfg(test)]
 pub mod tests;

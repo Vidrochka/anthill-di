@@ -1,22 +1,9 @@
 use core::fmt::Debug;
 use std::{any::{Any, TypeId, type_name}, marker::{PhantomData, Unsize}, sync::{Arc, Weak}};
-use derive_new::new;
-
-use crate::types::TypeInfo;
 
 pub (crate) trait IServiceConstructor where Self: Debug + Sync + Send + 'static {
     fn build(&self, component: Box<dyn Any + Sync + Send>) -> Box<dyn Any + Sync + Send>;
 }
-
-// impl Debug for Box<dyn IServiceConstructor> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("IServiceConstructor")
-//             .field("[META]:component_info", &self.get_component_info())
-//             .field("[META]:service_info", &self.get_service_info())
-//             .field("[META]:constructor_type", &self.get_constructor_type())
-//             .finish()
-//     }
-// }
 
 pub (crate) struct BoxedTraitService<TComponent: Sync + Send + 'static, TService: ?Sized + Sync + Send + 'static> where TComponent: Unsize<TService> {
     component_phantom_data: PhantomData<TComponent>,

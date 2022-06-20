@@ -1,18 +1,21 @@
 [package]
 name = "anthill-di"
-version = "1.2.3"
+version = "1.2.4"
 authors = ["Vidrochka <Evgenuy1605@yandex.ru>"]
 edition = "2021"
 description = "Rust di containers system"
 license = "MIT"
 homepage = "https://github.com/Vidrochka/anthill-di"
 repository = "https://github.com/Vidrochka/anthill-di"
-keywords = ["anthill", "di", "anthill-di", "dependency-injection", "build"]
+keywords = ["anthill", "di", "anthill-di", "dependency-injection", "ioc"]
 
 [dependencies]
 async-trait-with-sync = "0.1.36"
 tokio = { version = "1.15.0", features = ["full"] }
 derive-new = "0.5.9"
+
+thiserror = "1"
+anyhow = "1"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["async_tokio"] }
@@ -22,6 +25,8 @@ name = "anthill_bench"
 harness = false
 
 [features]
-default = ["loop-check"]
+default = ["loop-check", "async-mode"]
 loop-check = []
 debug-type-info = []
+async-mode = []
+blocking = ["async-mode"]

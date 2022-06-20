@@ -1,6 +1,6 @@
-#[derive(PartialEq, Clone, Debug)]
-pub enum DependencyLifeCycle {
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum LifeCycle {
     Transient,
     Singleton,
-    Scoped,
+    ContextDependent,
 }

@@ -1,2 +1,3 @@
-pub mod single_set;
-pub mod single_set_get;
+pub mod set;
+pub mod get;
+pub mod delete;
